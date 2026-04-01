@@ -61,6 +61,7 @@ type InvoiceRequest struct {
 	CustomerZIP       string     `json:"customerZIP"`
 	CustomerCity      string     `json:"customerCity"`
 	ProjectTitle      string     `json:"projectTitle"`
+	UseVat            bool       `json:"useVat"`
 	Items             []LineItem `json:"items"`
 }
 
@@ -261,8 +262,8 @@ func buildPDF(req InvoiceRequest, p *Profile) (pdfPath string, cleanup func(), e
 		AccountIBAN:       latexEscape(p.AccountIBAN),
 		AccountBIC:        latexEscape(p.AccountBIC),
 		AccountBankName:   latexEscape(p.AccountBankName),
-		VatID:             p.VatID,
-		VatRate:           vatRate(p),
+		VatID:             vatID(req, p),
+		VatRate:           vatRate(req, p),
 		InvoiceDate:       latexEscape(req.InvoiceDate),
 		PayDate:           latexEscape(req.PayDate),
 		InvoiceReference:  latexEscape(req.InvoiceReference),
@@ -317,10 +318,15 @@ func renderTemplate(dir, outName, tmplPath string, data any) error {
 	return os.WriteFile(filepath.Join(dir, outName), buf.Bytes(), 0644)
 }
 
-// vatRate returns the VAT rate for a profile: 0 for Kleinunternehmer,
-// or the configured rate (defaulting to 19) when a VAT ID is present.
-func vatRate(p *Profile) int {
-	if p.VatID == "" {
+func vatID(req InvoiceRequest, p *Profile) string {
+	if !req.UseVat {
+		return ""
+	}
+	return p.VatID
+}
+
+func vatRate(req InvoiceRequest, p *Profile) int {
+	if !req.UseVat {
 		return 0
 	}
 	if p.VatRate > 0 {
