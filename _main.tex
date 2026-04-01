@@ -1,6 +1,11 @@
 % koma_env.tex
 \documentclass[a4paper]{scrlttr2}
-\usepackage[top=2cm, bottom=1cm, left=2cm, right=2cm]{geometry}
+% Margins: top=2cm, bottom=1cm, left=2cm, right=2cm on A4
+% Using \setlength directly avoids geometry/scrlttr2 conflicts
+\setlength{\textwidth}{170mm}
+\setlength{\textheight}{267mm}
+\setlength{\oddsidemargin}{-5.4mm}
+\setlength{\topmargin}{-15mm}
 \usepackage{graphicx}
 \usepackage{lmodern}
 \usepackage[utf8]{inputenc}
@@ -8,13 +13,14 @@
 \usepackage[ngerman]{babel}
 \usepackage{color}
 \usepackage[hidelinks]{hyperref}
+\usepackage{etoolbox}
 
 \usepackage[german]{invoice}
 
 \renewcommand{\familydefault}{\sfdefault}
 
 % include meta data
-\include{_data}
+\input{_data}
 
 \setkomavar{fromname}{\senderName}
 \setkomavar{fromaddress}{\senderStreet \\ \senderZIP \ \senderCity}
@@ -25,13 +31,13 @@
 \setkomavar{fromemail}{\href{mailto:\senderEmail}{\nolinkurl{\senderEmail}}}
 \setkomavar{subject}{Rechnung}
 \setkomavar{location}{
-  \\[\baselineskip] \\[\baselineskip]
-  \flushright \small {\vspace{1cm}Rechnungsnummer: 
+  \hfill\\[\baselineskip]\hfill\\[\baselineskip]
+  \flushright \small {\vspace{1cm}Rechnungsnummer:
   \invoiceReference}
 }
 
 \setkomavar{firsthead}{\hfill
-   \parbox[t][\headheight][t]{6cm}{%
+   \parbox[t][\headheight][t]{8cm}{%
    \footnotesize
    \raggedright
    \flushright
@@ -57,8 +63,10 @@
 
 
 \begin{document}
-	\begin{letter}{\customerCompany \\ \customerName \\ 
-	\customerStreet \\ \customerZIP \ \customerCity}
+	\begin{letter}{%
+		\ifdefempty{\customerCompany}{}{\customerCompany \\}%
+		\customerName \\
+		\customerStreet \\ \customerZIP \ \customerCity}
 	
 			\includegraphics[width=0.2\textwidth]{logo.png}			
 			\opening{\invoiceSalutation}
