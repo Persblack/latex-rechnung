@@ -36,6 +36,8 @@ type Profile struct {
 	AccountBIC         string   `json:"accountBIC"`
 	AccountBankName    string   `json:"accountBankName"`
 	Logo               string   `json:"logo"`
+	VatID              string   `json:"vatID"`
+	VatRate            int      `json:"vatRate"` // optional; defaults to 19 when VatID is set
 }
 
 type LineItem struct {
@@ -80,6 +82,8 @@ type TemplateData struct {
 	AccountIBAN       string
 	AccountBIC        string
 	AccountBankName   string
+	VatID             string
+	VatRate           int
 	InvoiceDate       string
 	PayDate           string
 	InvoiceReference  string
@@ -257,6 +261,8 @@ func buildPDF(req InvoiceRequest, p *Profile) (pdfPath string, cleanup func(), e
 		AccountIBAN:       latexEscape(p.AccountIBAN),
 		AccountBIC:        latexEscape(p.AccountBIC),
 		AccountBankName:   latexEscape(p.AccountBankName),
+		VatID:             p.VatID,
+		VatRate:           vatRate(p),
 		InvoiceDate:       latexEscape(req.InvoiceDate),
 		PayDate:           latexEscape(req.PayDate),
 		InvoiceReference:  latexEscape(req.InvoiceReference),
@@ -309,6 +315,18 @@ func renderTemplate(dir, outName, tmplPath string, data any) error {
 		return fmt.Errorf("execute template %s: %w", tmplPath, err)
 	}
 	return os.WriteFile(filepath.Join(dir, outName), buf.Bytes(), 0644)
+}
+
+// vatRate returns the VAT rate for a profile: 0 for Kleinunternehmer,
+// or the configured rate (defaulting to 19) when a VAT ID is present.
+func vatRate(p *Profile) int {
+	if p.VatID == "" {
+		return 0
+	}
+	if p.VatRate > 0 {
+		return p.VatRate
+	}
+	return 19
 }
 
 // latexEscape escapes characters that are special in LaTeX text mode.

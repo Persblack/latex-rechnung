@@ -1,0 +1,17 @@
+{
+  "name": "Milky Cream GbR",
+  "taxID": "88019 / 13378",
+  "senderName": "Rico Klatte",
+  "senderCompanyLines": ["RK Holding GmbH", "Selim Özdogan", "und Benjamin Wojtowicz", "Milky Cream GbR"],
+  "senderStreet": "Fischergasse 2",
+  "senderZIP": "89073",
+  "senderCity": "Ulm",
+  "senderTelephone": "",
+  "senderMobilephone": "+49 (0)171 4184943",
+  "senderEmail": "milkycream@gmx.de",
+  "senderWeb": "",
+  "accountIBAN": "DE50 5001 0517 5450 3793 40",
+  "accountBIC": "INGDDEFFXXX",
+  "accountBankName": "ING-DiBa",
+  "logo": "milky-logo.png"
+}

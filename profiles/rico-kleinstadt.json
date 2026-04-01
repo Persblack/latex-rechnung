@@ -1,0 +1,18 @@
+{
+  "name": "Kleinstadt Roastery GbR",
+  "taxID": "91070 / 43782",
+  "vatID": "DE455062239",
+  "senderName": "Rico Klatte",
+  "senderCompanyLines": ["RK Holding GmbH", "und Rico Klatte", "Kleinstadt Roastery GbR"],
+  "senderStreet": "Steibisberger Weg 20",
+  "senderZIP": "88239",
+  "senderCity": "Wangen im Allgäu",
+  "senderTelephone": "",
+  "senderMobilephone": "+49 (0)171 4184943",
+  "senderEmail": "rico@kleinstadt-roastery.de",
+  "senderWeb": "www.kleinstadt-roastery.de",
+  "accountIBAN": "DE77 6309 1300 0524 0730 07",
+  "accountBIC": "GENODES1LAI",
+  "accountBankName": "Volksbank Alb",
+  "logo": "kleinstadt-logo.png"
+}

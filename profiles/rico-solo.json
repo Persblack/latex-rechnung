@@ -1,0 +1,17 @@
+{
+  "name": "Rico Klatte – Einzelunternehmen",
+  "taxID": "91186 / 08005",
+  "senderName": "Rico Klatte",
+  "senderCompanyLines": ["Rico Klatte"],
+  "senderStreet": "Steibisberger Weg 20",
+  "senderZIP": "88239",
+  "senderCity": "Wangen im Allgäu",
+  "senderTelephone": "",
+  "senderMobilephone": "+49 (0)171 4184943",
+  "senderEmail": "mail@ricoklatte.de",
+  "senderWeb": "www.ricoklatte.de",
+  "accountIBAN": "DE50 5001 0517 5450 3793 40",
+  "accountBIC": "INGDDEFFXXX",
+  "accountBankName": "ING-DiBa",
+  "logo": "logo.png"
+}
