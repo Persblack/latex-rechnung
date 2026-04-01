@@ -1,0 +1,17 @@
+{
+  "name": "Rico Klatte – Catering GbR",
+  "taxID": "91070 / 43733",
+  "senderName": "Rico Klatte",
+  "senderCompanyLines": ["RK Holding GmbH", "und Rico Klatte", "Catering GbR"],
+  "senderStreet": "Steibisberger Weg 20",
+  "senderZIP": "88239",
+  "senderCity": "Wangen im Allgäu",
+  "senderTelephone": "+49 (0)173 4529776",
+  "senderMobilephone": "+49 (0)171 4184943",
+  "senderEmail": "mail@ricoklatte.de",
+  "senderWeb": "www.ricoklatte.de",
+  "accountIBAN": "DE50 5001 0517 5450 3793 40",
+  "accountBIC": "INGDDEFFXXX",
+  "accountBankName": "ING-DiBa",
+  "logo": "logo.png"
+}
