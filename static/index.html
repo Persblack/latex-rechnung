@@ -432,7 +432,6 @@
     const p = await fetch(`/api/profiles/${key}`).then(r => r.json());
     summary.style.display = 'block';
     summary.textContent = `${p.senderName} · ${p.senderStreet}, ${p.senderZIP} ${p.senderCity} · ${p.senderEmail}`;
-    $('useVat').checked = !!p.vatID;
   });
 
   // Date helpers.
