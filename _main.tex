@@ -11,7 +11,6 @@
 
 \usepackage[german]{invoice}
 
-
 \renewcommand{\familydefault}{\sfdefault}
 
 % include meta data
@@ -38,7 +37,7 @@
    \flushright
    \color[gray]{.3}%
 	\begin{tabular}{rl}
-		 Anschrift & \usekomavar{fromname}\\
+		 Anschrift & \senderCompany\\
 		 & \senderStreet\\
 		 & \senderZIP  \ \senderCity \\
 		 \\
@@ -61,7 +60,7 @@
 	\begin{letter}{\customerCompany \\ \customerName \\ 
 	\customerStreet \\ \customerZIP \ \customerCity}
 	
-			\includegraphics[width=0.15\textwidth]{logo.png}			
+			\includegraphics[width=0.2\textwidth]{logo.png}			
 			\opening{\invoiceSalutation}
 			\invoiceText
 		    \begin{invoice}{Euro}{0}
