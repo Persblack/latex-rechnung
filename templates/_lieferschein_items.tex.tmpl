@@ -1,0 +1,15 @@
+\par\medskip
+\textbf{{{.ProjectTitle}}}
+\par\smallskip
+
+\noindent
+{\renewcommand{\arraystretch}{1.5}%
+\begin{tabular}{p{13cm}r}
+\hline
+\textbf{Bezeichnung} & \textbf{Menge} \\
+\hline
+{{- range .Items}}
+{{.Description}} & {{.Quantity}} \\
+{{- end}}
+\hline
+\end{tabular}}

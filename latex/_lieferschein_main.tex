@@ -1,0 +1,73 @@
+% _lieferschein_main.tex
+\documentclass[a4paper]{scrlttr2}
+\setlength{\textwidth}{170mm}
+\setlength{\textheight}{267mm}
+\setlength{\oddsidemargin}{-5.4mm}
+\setlength{\topmargin}{-15mm}
+\usepackage{graphicx}
+\usepackage{lmodern}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[ngerman]{babel}
+\usepackage{color}
+\usepackage[hidelinks]{hyperref}
+\usepackage{etoolbox}
+
+\renewcommand{\familydefault}{\sfdefault}
+
+% include meta data
+\input{_data}
+
+\setkomavar{fromname}{\senderName}
+\setkomavar{fromaddress}{\senderStreet \\ \senderZIP \ \senderCity}
+\setkomavar{place}{\senderCity}
+\setkomavar{date}{\invoiceDate}
+\setkomavar{fromphone}{\senderTelephone}
+\setkomavar{frommobilephone}{\senderMobilephone}
+\setkomavar{fromemail}{\href{mailto:\senderEmail}{\nolinkurl{\senderEmail}}}
+\setkomavar{subject}{Lieferschein}
+\setkomavar{location}{
+  \hfill\\[\baselineskip]\hfill\\[\baselineskip]
+  \flushright \small {\vspace{1cm}Lieferschein-Nr.:
+  \invoiceReference}
+}
+
+\setkomavar{firsthead}{\hfill
+   \parbox[t][\headheight][t]{8cm}{%
+   \footnotesize
+   \raggedright
+   \flushright
+   \color[gray]{.3}%
+	\begin{tabular}{rl}
+		 Anschrift & \senderCompany\\
+		 & \senderStreet\\
+		 & \senderZIP  \ \senderCity \\
+		 \\
+		 Mobil  & \usekomavar{frommobilephone} \\
+		 E-Mail  & \usekomavar{fromemail} \\
+		 Webseite & {\normalfont\ttfamily  \senderWeb } \\
+		 \\
+		 Steuernummer & \taxID \\
+		 \ifdefempty{\vatID}{}{USt-IdNr. & \vatID \\}
+	\end{tabular}
+   }%
+}
+
+
+\begin{document}
+	\begin{letter}{%
+		\ifdefempty{\customerCompany}{}{\customerCompany \\}%
+		\customerName \\
+		\customerStreet \\ \customerZIP \ \customerCity}
+
+			\includegraphics[width=0.2\textwidth]{logo.png}
+			\opening{\invoiceSalutation}
+			\invoiceText
+			\input{_lieferschein_items}
+
+			\renewcommand*{\raggedsignature}{\raggedright}
+			\closing{\invoiceClosing}
+			\invoiceEnclosures
+
+	\end{letter}
+\end{document}

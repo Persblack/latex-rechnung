@@ -213,26 +213,38 @@
     .toggle input:checked + .toggle-slider { background: var(--blue); }
     .toggle input:checked + .toggle-slider::before { transform: translateX(18px); }
 
-    /* Generate button */
+    /* Generate buttons */
     .actions { text-align: center; margin-top: 8px; }
+    .action-buttons { display: inline-flex; gap: 12px; flex-wrap: wrap; justify-content: center; }
 
-    .btn-generate {
+    .btn-generate, .btn-secondary {
       display: inline-flex;
       align-items: center;
       gap: 8px;
-      padding: 12px 32px;
-      background: var(--blue);
-      color: #fff;
-      border: none;
+      padding: 12px 28px;
       border-radius: var(--radius);
       font-size: 15px;
       font-weight: 600;
+      font-family: inherit;
       cursor: pointer;
-      transition: background .15s;
+      transition: background .15s, color .15s;
     }
 
-    .btn-generate:hover:not(:disabled) { background: var(--blue-hover); }
-    .btn-generate:disabled { opacity: .6; cursor: not-allowed; }
+    .btn-generate {
+      background: var(--blue);
+      color: #fff;
+      border: 2px solid var(--blue);
+    }
+    .btn-generate:hover:not(:disabled) { background: var(--blue-hover); border-color: var(--blue-hover); }
+
+    .btn-secondary {
+      background: #fff;
+      color: var(--blue);
+      border: 2px solid var(--blue);
+    }
+    .btn-secondary:hover:not(:disabled) { background: var(--blue-light); }
+
+    .btn-generate:disabled, .btn-secondary:disabled { opacity: .6; cursor: not-allowed; }
 
     .spinner {
       width: 16px;
@@ -381,10 +393,16 @@
 
   <!-- Generate -->
   <div class="actions">
-    <button class="btn-generate" id="generateBtn" onclick="generate()">
-      <div class="spinner" id="spinner"></div>
-      <span id="generateLabel">PDF generieren</span>
-    </button>
+    <div class="action-buttons">
+      <button class="btn-generate" id="generateBtn" onclick="generateDoc('/generate', 'rechnung', 'generateBtn')">
+        <div class="spinner" id="spinnerInv"></div>
+        <span>PDF generieren</span>
+      </button>
+      <button class="btn-secondary" id="lieferscheinBtn" onclick="generateDoc('/lieferschein', 'lieferschein', 'lieferscheinBtn')">
+        <div class="spinner" id="spinnerLS"></div>
+        <span>Lieferschein erstellen</span>
+      </button>
+    </div>
     <div id="error"></div>
   </div>
 </div>
@@ -469,10 +487,9 @@
   // Add one empty row on load.
   addItem();
 
-  async function generate() {
-    const btn = $('generateBtn');
-    const spinner = $('spinner');
-    const label = $('generateLabel');
+  async function generateDoc(endpoint, filePrefix, btnId) {
+    const btn = $(btnId);
+    const spinnerId = btnId === 'generateBtn' ? 'spinnerInv' : 'spinnerLS';
     const errorEl = $('error');
 
     errorEl.style.display = 'none';
@@ -508,19 +525,17 @@
     };
 
     btn.disabled = true;
-    spinner.style.display = 'block';
-    label.textContent = 'Generiere PDF…';
+    $(spinnerId).style.display = 'block';
 
     try {
-      const res = await fetch('/generate', {
+      const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
 
       if (!res.ok) {
-        const msg = await res.text();
-        showError(msg);
+        showError(await res.text());
         return;
       }
 
@@ -528,15 +543,14 @@
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = `rechnung-${payload.invoiceReference || 'neu'}.pdf`;
+      a.download = `${filePrefix}-${payload.invoiceReference || 'neu'}.pdf`;
       a.click();
       URL.revokeObjectURL(url);
     } catch (e) {
       showError('Netzwerkfehler: ' + e.message);
     } finally {
       btn.disabled = false;
-      spinner.style.display = 'none';
-      label.textContent = 'PDF generieren';
+      $(spinnerId).style.display = 'none';
     }
   }
 

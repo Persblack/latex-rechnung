@@ -115,6 +115,7 @@ func main() {
 	mux.HandleFunc("GET /api/profiles", handleProfiles)
 	mux.HandleFunc("GET /api/profiles/{key}", handleProfile)
 	mux.HandleFunc("POST /generate", handleGenerate)
+	mux.HandleFunc("POST /lieferschein", handleLieferschein)
 
 	log.Println("Listening on http://localhost:8080")
 	log.Fatal(http.ListenAndServe(":8080", mux))
@@ -171,6 +172,42 @@ func handleProfile(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleGenerate(w http.ResponseWriter, r *http.Request) {
+	handleDoc(w, r, "invoice")
+}
+
+func handleLieferschein(w http.ResponseWriter, r *http.Request) {
+	handleDoc(w, r, "lieferschein")
+}
+
+type docConfig struct {
+	mainTex    string
+	itemsTmpl  string
+	itemsOut   string
+	extraFiles []string
+	outputPDF  string
+	filePrefix string
+}
+
+var docConfigs = map[string]docConfig{
+	"invoice": {
+		mainTex:    "_main.tex",
+		itemsTmpl:  "templates/_invoice.tex.tmpl",
+		itemsOut:   "_invoice.tex",
+		extraFiles: []string{"invoice.sty", "invoice.def"},
+		outputPDF:  "_main.pdf",
+		filePrefix: "rechnung",
+	},
+	"lieferschein": {
+		mainTex:    "_lieferschein_main.tex",
+		itemsTmpl:  "templates/_lieferschein_items.tex.tmpl",
+		itemsOut:   "_lieferschein_items.tex",
+		extraFiles: []string{},
+		outputPDF:  "_lieferschein_main.pdf",
+		filePrefix: "lieferschein",
+	},
+}
+
+func handleDoc(w http.ResponseWriter, r *http.Request, docType string) {
 	var req InvoiceRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		http.Error(w, "invalid request: "+err.Error(), http.StatusBadRequest)
@@ -182,7 +219,8 @@ func handleGenerate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pdfPath, cleanup, err := buildPDF(req, p)
+	cfg := docConfigs[docType]
+	pdfPath, cleanup, err := buildDocument(req, p, cfg)
 	defer cleanup()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -196,13 +234,13 @@ func handleGenerate(w http.ResponseWriter, r *http.Request) {
 	}
 	defer f.Close()
 
-	filename := fmt.Sprintf("rechnung-%s.pdf", req.InvoiceReference)
+	filename := fmt.Sprintf("%s-%s.pdf", cfg.filePrefix, req.InvoiceReference)
 	w.Header().Set("Content-Type", "application/pdf")
 	w.Header().Set("Content-Disposition", `attachment; filename="`+filename+`"`)
 	io.Copy(w, f)
 }
 
-func buildPDF(req InvoiceRequest, p *Profile) (pdfPath string, cleanup func(), err error) {
+func buildDocument(req InvoiceRequest, p *Profile, cfg docConfig) (pdfPath string, cleanup func(), err error) {
 	noop := func() {}
 
 	tmpDir, err := os.MkdirTemp("", "rechnung-*")
@@ -212,7 +250,8 @@ func buildPDF(req InvoiceRequest, p *Profile) (pdfPath string, cleanup func(), e
 	cleanup = func() { os.RemoveAll(tmpDir) }
 
 	// Copy embedded LaTeX files into temp dir.
-	for _, f := range []string{"_main.tex", "invoice.sty", "invoice.def"} {
+	filesToCopy := append([]string{cfg.mainTex}, cfg.extraFiles...)
+	for _, f := range filesToCopy {
 		data, err := embedded.ReadFile("latex/" + f)
 		if err != nil {
 			return "", cleanup, fmt.Errorf("read embedded %s: %w", f, err)
@@ -283,13 +322,13 @@ func buildPDF(req InvoiceRequest, p *Profile) (pdfPath string, cleanup func(), e
 	if err := renderTemplate(tmpDir, "_data.tex", "templates/_data.tex.tmpl", data); err != nil {
 		return "", cleanup, err
 	}
-	if err := renderTemplate(tmpDir, "_invoice.tex", "templates/_invoice.tex.tmpl", data); err != nil {
+	if err := renderTemplate(tmpDir, cfg.itemsOut, cfg.itemsTmpl, data); err != nil {
 		return "", cleanup, err
 	}
 
 	// Run pdflatex twice so cross-references resolve correctly.
 	for i := range 2 {
-		cmd := exec.Command("pdflatex", "-interaction=nonstopmode", "_main.tex")
+		cmd := exec.Command("pdflatex", "-interaction=nonstopmode", cfg.mainTex)
 		cmd.Dir = tmpDir
 		var out bytes.Buffer
 		cmd.Stdout = &out
@@ -299,7 +338,7 @@ func buildPDF(req InvoiceRequest, p *Profile) (pdfPath string, cleanup func(), e
 		}
 	}
 
-	return filepath.Join(tmpDir, "_main.pdf"), cleanup, nil
+	return filepath.Join(tmpDir, cfg.outputPDF), cleanup, nil
 }
 
 func renderTemplate(dir, outName, tmplPath string, data any) error {
