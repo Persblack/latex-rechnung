@@ -43,7 +43,7 @@
    \flushright
    \color[gray]{.3}%
 	\begin{tabular}{rl}
-		 Anschrift & \senderCompany\\
+		 Anschrift & \shortstack[r]{\senderCompany}\\
 		 & \senderStreet\\
 		 & \senderZIP  \ \senderCity \\
 		 \\
@@ -65,8 +65,9 @@
 \begin{document}
 	\begin{letter}{%
 		\ifdefempty{\customerCompany}{}{\customerCompany \\}%
-		\customerName \\
-		\customerStreet \\ \customerZIP \ \customerCity}
+		\ifdefempty{\customerName}{}{\customerName \\}%
+		\ifdefempty{\customerStreet}{}{\customerStreet \\}%
+		\customerZIP \ \customerCity}
 	
 			\includegraphics[width=0.2\textwidth]{logo.png}			
 			\opening{\invoiceSalutation}

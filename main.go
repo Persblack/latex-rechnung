@@ -327,14 +327,16 @@ func buildDocument(req InvoiceRequest, p *Profile, cfg docConfig) (pdfPath strin
 	}
 
 	// Run pdflatex twice so cross-references resolve correctly.
+	// Only check the exit code on the final run — the first run commonly
+	// returns exit 1 due to unresolved cross-references / missing .aux.
 	for i := range 2 {
 		cmd := exec.Command("pdflatex", "-interaction=nonstopmode", cfg.mainTex)
 		cmd.Dir = tmpDir
 		var out bytes.Buffer
 		cmd.Stdout = &out
 		cmd.Stderr = &out
-		if err := cmd.Run(); err != nil {
-			return "", cleanup, fmt.Errorf("pdflatex run %d failed: %w\n\n%s", i+1, err, out.String())
+		if err := cmd.Run(); err != nil && i == 1 {
+			return "", cleanup, fmt.Errorf("pdflatex failed: %w\n\n%s", err, out.String())
 		}
 	}
 

@@ -278,7 +278,10 @@
 </head>
 <body>
 <div class="page">
-  <h1>Rechnungsgenerator</h1>
+  <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
+    <h1 style="margin-bottom:0">Rechnungsgenerator</h1>
+    <button type="button" class="btn-helper" onclick="fillTestData()" style="padding:6px 14px">Testdaten</button>
+  </div>
 
   <!-- Absender -->
   <div class="card">
@@ -485,6 +488,50 @@
 
   // Add one empty row on load.
   addItem();
+
+  // Fill form with random test data.
+  function fillTestData() {
+    const surnames = ['Müller','Schmidt','Schneider','Fischer','Weber','Meyer','Wagner','Becker','Schulz','Hoffmann'];
+    const firstnames = ['Anna','Ben','Clara','David','Eva','Felix','Greta','Hans','Ida','Jan'];
+    const streets = ['Hauptstraße','Bahnhofstraße','Gartenweg','Lindenallee','Bergstraße','Schulstraße','Rosenweg','Kirchplatz'];
+    const cities = [
+      {zip:'10115',city:'Berlin'},{zip:'20095',city:'Hamburg'},{zip:'80331',city:'München'},
+      {zip:'50667',city:'Köln'},{zip:'60311',city:'Frankfurt'},{zip:'70173',city:'Stuttgart'},
+      {zip:'01067',city:'Dresden'},{zip:'04109',city:'Leipzig'},{zip:'90402',city:'Nürnberg'},
+    ];
+    const companies = ['','','Muster GmbH','Beispiel AG','Test & Partner','Fantasie OHG'];
+    const services = [
+      'Servicepauschale','Beratung','Catering','Eventplanung','Lieferung',
+      'Aufbau und Abbau','Personalkosten','Materialkosten','Reinigung',
+    ];
+
+    const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+    const rand = (min, max) => Math.floor(Math.random() * (max - min + 1)) + min;
+
+    $('customerCompany').value = pick(companies);
+    $('customerName').value = pick(firstnames) + ' ' + pick(surnames);
+    $('customerStreet').value = pick(streets) + ' ' + rand(1, 120);
+    const loc = pick(cities);
+    $('customerZIP').value = loc.zip;
+    $('customerCity').value = loc.city;
+
+    setToday();
+    setPayDate(14);
+    genReference();
+
+    $('invoiceSalutation').value = 'Sehr geehrte Damen und Herren,';
+    $('invoiceText').value = 'für die von mir erbrachte Leistung erhalten Sie hiermit die Rechnung.';
+    $('invoiceClosing').value = 'Mit freundlichen Grüßen';
+    $('invoiceEnclosures').value = '';
+    $('projectTitle').value = 'Testprojekt ' + toDE(new Date());
+
+    // Clear existing items and add 1-3 random ones.
+    $('items').innerHTML = '';
+    const count = rand(1, 3);
+    for (let i = 0; i < count; i++) {
+      addItem(pick(services), (rand(50, 500) / 10).toFixed(2), String(rand(1, 10)));
+    }
+  }
 
   async function generateDoc(endpoint, filePrefix, btnId) {
     const btn = $(btnId);

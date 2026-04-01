@@ -23,17 +23,17 @@
 \input{_data}
 
 \setkomavar{fromname}{\senderName}
-\setkomavar{fromaddress}{\senderStreet \\ \senderZIP \ \senderCity}
+\setkomavar{fromaddress}{\ifdefempty{\senderStreet}{}{\senderStreet \\}\senderZIP \ \senderCity}
 \setkomavar{place}{\senderCity}
 \setkomavar{date}{\invoiceDate}
 \setkomavar{fromphone}{\senderTelephone}
 \setkomavar{frommobilephone}{\senderMobilephone}
 \setkomavar{fromemail}{\href{mailto:\senderEmail}{\nolinkurl{\senderEmail}}}
 \setkomavar{subject}{Rechnung}
-\setkomavar{location}{
-  \hfill\\[\baselineskip]\hfill\\[\baselineskip]
-  \flushright \small {\vspace{1cm}Rechnungsnummer:
-  \invoiceReference}
+\setkomavar{location}{%
+  \raggedleft\small
+  \vspace*{3\baselineskip}%
+  Rechnungsnummer: \invoiceReference
 }
 
 \setkomavar{firsthead}{\hfill
@@ -43,7 +43,7 @@
    \flushright
    \color[gray]{.3}%
 	\begin{tabular}{rl}
-		 Anschrift & \senderCompany\\
+		 Anschrift & \shortstack[r]{\senderCompany}\\
 		 & \senderStreet\\
 		 & \senderZIP  \ \senderCity \\
 		 \\
@@ -66,8 +66,9 @@
 \begin{document}
 	\begin{letter}{%
 		\ifdefempty{\customerCompany}{}{\customerCompany \\}%
-		\customerName \\
-		\customerStreet \\ \customerZIP \ \customerCity}
+		\ifdefempty{\customerName}{}{\customerName \\}%
+		\ifdefempty{\customerStreet}{}{\customerStreet \\}%
+		\customerZIP \ \customerCity}
 	
 			\includegraphics[width=0.2\textwidth]{logo.png}			
 			\opening{\invoiceSalutation}
