@@ -1,4 +1,4 @@
-\ProjectTitle{{{.ProjectTitle}}}
+\ProjectTitle{{"{"}}{{.ProjectTitle}}{{"}"}}
 {{- range .Items}}
-\Fee{{{.Description}}}{{{.UnitPrice}}}{{{.Quantity}}}
+\Fee{{"{"}}{{.Description}}{{"}"}}{{"{"}}{{.UnitPrice}}{{"}"}}{{"{"}}{{.Quantity}}{{"}"}}
 {{- end}}

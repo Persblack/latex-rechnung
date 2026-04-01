@@ -270,7 +270,7 @@ func buildDocument(req InvoiceRequest, p *Profile, cfg docConfig) (pdfPath strin
 		return "", cleanup, fmt.Errorf("write logo: %w", err)
 	}
 
-	// Build SenderCompany from lines joined with LaTeX tabular separator.
+	// Build SenderCompany from lines joined with LaTeX newline.
 	companyLines := make([]string, len(p.SenderCompanyLines))
 	for i, l := range p.SenderCompanyLines {
 		companyLines[i] = latexEscape(l)
@@ -289,7 +289,7 @@ func buildDocument(req InvoiceRequest, p *Profile, cfg docConfig) (pdfPath strin
 	data := TemplateData{
 		TaxID:             latexEscape(p.TaxID),
 		SenderName:        latexEscape(p.SenderName),
-		SenderCompany:     strings.Join(companyLines, `\\&`),
+		SenderCompany:     strings.Join(companyLines, `\\`),
 		SenderStreet:      latexEscape(p.SenderStreet),
 		SenderZIP:         latexEscape(p.SenderZIP),
 		SenderCity:        latexEscape(p.SenderCity),
