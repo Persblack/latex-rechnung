@@ -101,7 +101,7 @@
     /* Line items */
     .items-header {
       display: grid;
-      grid-template-columns: 1fr 110px 90px 36px;
+      grid-template-columns: 1fr 110px 80px 36px;
       gap: 8px;
       padding: 0 0 6px;
       border-bottom: 1px solid var(--gray-200);
@@ -118,11 +118,22 @@
 
     .item-row {
       display: grid;
-      grid-template-columns: 1fr 110px 90px 36px;
+      grid-template-columns: 1fr 110px 80px 36px;
       gap: 8px;
       margin-bottom: 8px;
       align-items: center;
     }
+
+    /* When VAT is active, insert a 72px column before the remove button */
+    .items-wrap.vat-on .items-header,
+    .items-wrap.vat-on .item-row {
+      grid-template-columns: 1fr 110px 80px 72px 36px;
+    }
+
+    .item-vat { display: none; }
+    .items-wrap.vat-on .item-vat { display: block; }
+    .items-wrap.vat-on .vat-header { display: block; }
+    .vat-header { display: none; }
 
     .btn-remove {
       display: flex;
@@ -382,13 +393,16 @@
       <label for="projectTitle">Projekttitel *</label>
       <input type="text" id="projectTitle" placeholder="z.B. Catering 01.04.2026">
     </div>
+    <div class="items-wrap" id="itemsWrap">
     <div class="items-header">
       <span>Beschreibung</span>
       <span>Einzelpreis (€)</span>
       <span>Menge</span>
+      <span class="vat-header">MwSt.</span>
       <span></span>
     </div>
     <div id="items"></div>
+    </div>
     <button type="button" class="btn-add" onclick="addItem()">
       <span style="font-size:18px;line-height:1">+</span> Position hinzufügen
     </button>
@@ -469,14 +483,26 @@
     $('invoiceReference').value = `${y}${m}-${n}`;
   }
 
+  // Sync items-wrap VAT class with toggle state.
+  function syncVatClass() {
+    $('itemsWrap').classList.toggle('vat-on', $('useVat').checked);
+  }
+  $('useVat').addEventListener('change', syncVatClass);
+  syncVatClass();
+
   // Line items.
-  function addItem(desc = '', price = '', qty = '') {
+  function addItem(desc = '', price = '', qty = '', vatRate = '19') {
     const row = document.createElement('div');
     row.className = 'item-row';
     row.innerHTML = `
       <input type="text" class="item-desc" placeholder="Beschreibung" value="${esc(desc)}">
       <input type="number" class="item-price" placeholder="0.00" step="0.01" min="0" value="${esc(price)}">
       <input type="number" class="item-qty" placeholder="1" step="0.5" min="0" value="${esc(qty)}">
+      <select class="item-vat">
+        <option value="19"${vatRate === '19' ? ' selected' : ''}>19%</option>
+        <option value="7"${vatRate === '7' ? ' selected' : ''}>7%</option>
+        <option value=""${vatRate === '' ? ' selected' : ''}>—</option>
+      </select>
       <button type="button" class="btn-remove" title="Entfernen" onclick="this.closest('.item-row').remove()">×</button>
     `;
     $('items').appendChild(row);
@@ -543,10 +569,12 @@
     const profileKey = $('profile').value;
     if (!profileKey) { showError('Bitte ein Absender-Profil wählen.'); return; }
 
+    const useVat = $('useVat').checked;
     const items = [...document.querySelectorAll('.item-row')].map(row => ({
       description: row.querySelector('.item-desc').value,
       unitPrice:   row.querySelector('.item-price').value,
       quantity:    row.querySelector('.item-qty').value,
+      vatRate:     useVat ? row.querySelector('.item-vat').value : '',
     })).filter(i => i.description && i.unitPrice && i.quantity);
 
     if (items.length === 0) { showError('Mindestens eine vollständige Position erforderlich.'); return; }
@@ -566,7 +594,7 @@
       customerZIP:       $('customerZIP').value,
       customerCity:      $('customerCity').value,
       projectTitle:      $('projectTitle').value,
-      useVat:            $('useVat').checked,
+      useVat,
       items,
     };
 

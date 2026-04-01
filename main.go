@@ -44,6 +44,7 @@ type LineItem struct {
 	Description string `json:"description"`
 	UnitPrice   string `json:"unitPrice"`
 	Quantity    string `json:"quantity"`
+	VatRate     string `json:"vatRate"` // "", "7", or "19"
 }
 
 type InvoiceRequest struct {
@@ -276,11 +277,11 @@ func buildDocument(req InvoiceRequest, p *Profile, cfg docConfig) (pdfPath strin
 		companyLines[i] = latexEscape(l)
 	}
 
-	// Escape line item descriptions; leave prices/quantities as-is (numeric).
+	// Escape line item descriptions; append VAT label when applicable.
 	escapedItems := make([]LineItem, len(req.Items))
 	for i, item := range req.Items {
 		escapedItems[i] = LineItem{
-			Description: latexEscape(item.Description),
+			Description: itemDescription(item, req.UseVat),
 			UnitPrice:   item.UnitPrice,
 			Quantity:    item.Quantity,
 		}
@@ -366,14 +367,20 @@ func vatID(req InvoiceRequest, p *Profile) string {
 	return p.VatID
 }
 
-func vatRate(req InvoiceRequest, p *Profile) int {
-	if !req.UseVat {
-		return 0
+// vatRate always returns 0 — VAT is now expressed per item in the description,
+// not as a global rate on the invoice environment.
+func vatRate(_ InvoiceRequest, _ *Profile) int {
+	return 0
+}
+
+// itemDescription returns the LaTeX-escaped item description, with the VAT
+// rate appended (e.g. "Cappuccino (19\% MwSt.)") when VAT is enabled.
+func itemDescription(item LineItem, useVat bool) string {
+	desc := latexEscape(item.Description)
+	if !useVat || item.VatRate == "" {
+		return desc
 	}
-	if p.VatRate > 0 {
-		return p.VatRate
-	}
-	return 19
+	return desc + ` (` + item.VatRate + `\% MwSt.)`
 }
 
 // latexEscape escapes characters that are special in LaTeX text mode.
