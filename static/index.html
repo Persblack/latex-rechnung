@@ -160,6 +160,26 @@
 
     .btn-add:hover { background: var(--blue-light); border-color: var(--blue); }
 
+    /* Inline helper buttons (Heute, +14 Tage, etc.) */
+    .input-row { display: flex; gap: 6px; }
+    .input-row input { flex: 1; min-width: 0; }
+
+    .btn-helper {
+      flex-shrink: 0;
+      padding: 0 10px;
+      border: 1px solid var(--gray-200);
+      border-radius: 6px;
+      background: var(--gray-50);
+      color: var(--gray-600);
+      font-size: 12px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background .15s, border-color .15s, color .15s;
+    }
+    .btn-helper:hover { background: var(--blue-light); border-color: var(--blue); color: var(--blue); }
+
     /* Generate button */
     .actions { text-align: center; margin-top: 8px; }
 
@@ -262,15 +282,24 @@
     <div class="grid grid-2">
       <div>
         <label for="invoiceDate">Rechnungsdatum *</label>
-        <input type="text" id="invoiceDate" placeholder="TT.MM.JJJJ">
+        <div class="input-row">
+          <input type="text" id="invoiceDate" placeholder="TT.MM.JJJJ">
+          <button type="button" class="btn-helper" onclick="setToday()">Heute</button>
+        </div>
       </div>
       <div>
         <label for="payDate">Zahlungsziel *</label>
-        <input type="text" id="payDate" placeholder="TT.MM.JJJJ">
+        <div class="input-row">
+          <input type="text" id="payDate" placeholder="TT.MM.JJJJ">
+          <button type="button" class="btn-helper" onclick="setPayDate(14)">+14 Tage</button>
+        </div>
       </div>
       <div>
         <label for="invoiceReference">Rechnungsnummer *</label>
-        <input type="text" id="invoiceReference" placeholder="202601-1">
+        <div class="input-row">
+          <input type="text" id="invoiceReference" placeholder="202601-1">
+          <button type="button" class="btn-helper" onclick="genReference()">Generieren</button>
+        </div>
       </div>
       <div>
         <label for="invoiceSalutation">Anrede</label>
@@ -346,6 +375,38 @@
     summary.style.display = 'block';
     summary.textContent = `${p.senderName} · ${p.senderStreet}, ${p.senderZIP} ${p.senderCity} · ${p.senderEmail}`;
   });
+
+  // Date helpers.
+  function toDE(date) {
+    const d = String(date.getDate()).padStart(2, '0');
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    return `${d}.${m}.${date.getFullYear()}`;
+  }
+
+  function parseDE(str) {
+    const [d, m, y] = str.split('.').map(Number);
+    return new Date(y, m - 1, d);
+  }
+
+  function setToday() {
+    $('invoiceDate').value = toDE(new Date());
+  }
+
+  function setPayDate(days) {
+    const base = $('invoiceDate').value
+      ? parseDE($('invoiceDate').value)
+      : new Date();
+    base.setDate(base.getDate() + days);
+    $('payDate').value = toDE(base);
+  }
+
+  function genReference() {
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = String(now.getMonth() + 1).padStart(2, '0');
+    const n = Math.floor(Math.random() * 9) + 1;
+    $('invoiceReference').value = `${y}${m}-${n}`;
+  }
 
   // Line items.
   function addItem(desc = '', price = '', qty = '') {
