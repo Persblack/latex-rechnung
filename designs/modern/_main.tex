@@ -1,0 +1,551 @@
+% =============================================================
+%  MODERN DESIGN -- Tech-minimal / Monospace / Blaue Akzente
+%  Inspo: inspo/invoice-light.jpeg
+%  Engine: pdfLaTeX (TeX Live 2025 basic)
+%
+%  Komponenten-Analyse (Inspo: invoice-light.jpeg):
+%  -------------------------------------------------------
+%  [x] Header-Strip mit blauen Squares ("INVOICE SYSTEM V1.0")
+%  [x] Big-Type Firmenname als Wortmarke links oben
+%  [x] Tagline ("///////") und Absenderadressblock
+%  [x] Invoice-Metablock rechts: Rechnungsnummer gross,
+%      Datum / Faelligkeit / Status / Waehrung
+%  [x] Dekorativer Barcode (TikZ, kein Standard-Format)
+%  [x] Rotiertes Label neben Barcode ("BEN.SYSTEMS"-Stil)
+%  [x] Separator-Linien (blau, grau)
+%  [x] Zwei-Spalten-Block: BILLED TO + Projektinfo
+%  [x] Vertikales "CLIENT"-Label am linken Rand
+%  [x] Vertikales "SYSTEM ID"-Label am rechten Rand
+%  [x] Crop-Marks an allen 4 Ecken (TikZ overlay)
+%  [x] Item-Tabelle nummeriert 01/02/03 (eigene \Fee-Macros)
+%  [x] Subtotal / Total
+%  [x] Notes-Block (Anrede + Rechnungstext + Grussformel)
+%  [x] Footer: Zahlungsinfo (IBAN, BIC, Bank)
+%  [x] QR-Platzhalter (TikZ-Box, da qrcode-Paket nicht verf.)
+%  [x] System-Info-Block (Invoice ID, Tax Nr, USt-ID)
+%  [x] §19 UStG Disclaimer (konditional: nur wenn \vatID leer)
+%  [x] Footer-Strip "SECURE * ENCRYPTED * VERIFIED"
+%  [ ] Florale Zeichnung (inspo-spezifisch, weggelassen)
+%  [ ] Funktionaler QR-Code (qrcode.sty nicht in TeX Live basic)
+%  LIMITATION: qrcode-Paket nicht in dieser TeX-Distribution.
+%              Als Next-Step: tlmgr install qrcode oder LuaLaTeX.
+% =============================================================
+
+\documentclass[a4paper,10pt]{article}
+
+% ---- Encoding & Language ---------------------------------
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[ngerman]{babel}
+
+% ---- Page Geometry ---------------------------------------
+\usepackage[
+  a4paper,
+  top=13mm,
+  bottom=13mm,
+  left=16mm,
+  right=16mm,
+  headheight=0pt,
+  headsep=0pt,
+  footskip=0pt
+]{geometry}
+
+% ---- Font: Latin Modern Typewriter (Monospace, TeX Live basic)
+% LM Typewriter ist sauber T1-kodiert und in TeX Live basic enthalten.
+% Inconsolata/Courier nicht verfuegbar in dieser Distribution.
+\usepackage{lmodern}
+\renewcommand{\familydefault}{\ttdefault}
+
+% ---- Mikrotypografie -------------------------------------
+\usepackage[
+  activate={true,nocompatibility},
+  final,
+  tracking=true,
+  kerning=true,
+  spacing=true,
+  factor=1100,
+  stretch=10,
+  shrink=10
+]{microtype}
+
+% ---- Farben ----------------------------------------------
+\usepackage[dvipsnames,svgnames,table]{xcolor}
+\definecolor{brand}{HTML}{2C3DFF}
+\definecolor{offwhite}{HTML}{F5F5F3}
+\definecolor{darktext}{HTML}{1A1A1A}
+\definecolor{midgray}{HTML}{888888}
+\definecolor{lightgray}{HTML}{C8C8C8}
+
+% ---- TikZ ------------------------------------------------
+\usepackage{tikz}
+\usetikzlibrary{calc}
+
+% ---- Tabellen --------------------------------------------
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{colortbl}
+\usepackage{tabularx}
+
+% ---- Arithmetik fuer Summen ------------------------------
+\usepackage{fp}
+
+% ---- Diverses --------------------------------------------
+\usepackage{graphicx}
+\usepackage{url}
+\usepackage{parskip}
+\usepackage{setspace}
+\usepackage{ifthen}
+\usepackage{etoolbox}
+\usepackage{calc}
+
+% ---- Keine Seitenzahl ------------------------------------
+\pagestyle{empty}
+
+% =============================================================
+%  UTILITY-MACROS
+% =============================================================
+
+% Kleines Brand-Farb-Quadrat (wie Inspo-Header-Squares)
+\newcommand{\brandsquare}{\textcolor{brand}{\rule[-0.5pt]{4pt}{4pt}}}
+
+% Vertikales Label: rotiert, Grossbuchstaben, brand-Farbe
+\newcommand{\vertlabel}[1]{%
+  \rotatebox{90}{%
+    \textcolor{brand}{\fontsize{6.5pt}{7pt}\selectfont\textbf{#1}}%
+  }%
+}
+
+% Kleines grauens Beschriftungs-Label (ueber Feldwert)
+\newcommand{\metalabel}[1]{%
+  {\fontsize{6pt}{7pt}\selectfont\textcolor{midgray}{\MakeUppercase{#1}}}%
+}
+
+% Trennlinie brand-Farbe
+\newcommand{\brandrule}{\noindent\textcolor{brand}{\rule{\linewidth}{0.7pt}}}
+
+% Trennlinie grau
+\newcommand{\grayrule}{\noindent\textcolor{lightgray}{\rule{\linewidth}{0.4pt}}}
+
+% Crop-Marks (TikZ overlay, an den 4 Seitenecken)
+\newcommand{\cropmarks}{%
+  \begin{tikzpicture}[remember picture, overlay]
+    \tikzset{cmark/.style={draw=lightgray, line width=0.3pt}}
+    % Oben links
+    \draw[cmark] ($(current page.north west)+(10mm,-10mm)$)
+              -- ($(current page.north west)+(14mm,-10mm)$);
+    \draw[cmark] ($(current page.north west)+(10mm,-10mm)$)
+              -- ($(current page.north west)+(10mm,-14mm)$);
+    % Oben rechts
+    \draw[cmark] ($(current page.north east)+(-10mm,-10mm)$)
+              -- ($(current page.north east)+(-14mm,-10mm)$);
+    \draw[cmark] ($(current page.north east)+(-10mm,-10mm)$)
+              -- ($(current page.north east)+(-10mm,-14mm)$);
+    % Unten links
+    \draw[cmark] ($(current page.south west)+(10mm,10mm)$)
+              -- ($(current page.south west)+(14mm,10mm)$);
+    \draw[cmark] ($(current page.south west)+(10mm,10mm)$)
+              -- ($(current page.south west)+(10mm,14mm)$);
+    % Unten rechts
+    \draw[cmark] ($(current page.south east)+(-10mm,10mm)$)
+              -- ($(current page.south east)+(-14mm,10mm)$);
+    \draw[cmark] ($(current page.south east)+(-10mm,10mm)$)
+              -- ($(current page.south east)+(-10mm,14mm)$);
+    % Dekoratives Plus (wie im Inspo links)
+    \draw[draw=lightgray, line width=0.3pt]
+      ($(current page.north west)+(16mm,-55mm)$)
+      -- ($(current page.north west)+(17.5mm,-55mm)$);
+    \draw[draw=lightgray, line width=0.3pt]
+      ($(current page.north west)+(16.75mm,-54.25mm)$)
+      -- ($(current page.north west)+(16.75mm,-55.75mm)$);
+  \end{tikzpicture}%
+}
+
+% Dekorativer Barcode (TikZ, kein Standard-Format)
+\newcommand{\decobarcode}{%
+  \begin{tikzpicture}[x=1.1pt, y=1pt, baseline=4pt]
+    \foreach \w/\h/\x in {
+      2/18/0,  1/13/3,  3/18/5,  1/9/9,   2/15/11,
+      1/18/14, 3/11/16, 1/18/20, 2/13/22, 1/18/25,
+      3/9/27,  1/15/31, 2/18/33, 1/11/36, 3/18/38,
+      1/13/42, 2/9/44,  1/18/47, 3/15/49, 1/18/53
+    }{
+      \fill[brand] (\x pt, 0pt) rectangle (\x pt + \w pt, \h pt);
+    }
+  \end{tikzpicture}%
+}
+
+% QR-Platzhalter (TikZ, da qrcode.sty nicht in TeX Live basic)
+\newcommand{\qrplaceholder}[1]{%
+  \begin{tikzpicture}[x=1pt, y=1pt]
+    % Rahmen
+    \draw[brand, line width=1pt] (0,0) rectangle (60,60);
+    % Eckmodule (typische QR-Optik)
+    \fill[brand] (3,45) rectangle (18,60);
+    \fill[offwhite] (6,48) rectangle (15,57);
+    \fill[brand] (9,51) rectangle (12,54);
+    \fill[brand] (42,45) rectangle (57,60);
+    \fill[offwhite] (45,48) rectangle (54,57);
+    \fill[brand] (48,51) rectangle (51,54);
+    \fill[brand] (3,3) rectangle (18,18);
+    \fill[offwhite] (6,6) rectangle (15,15);
+    \fill[brand] (9,9) rectangle (12,12);
+    % Zufaellige Datenpunkte (dekorativ)
+    \foreach \px/\py in {
+      21/51, 24/54, 27/51, 30/54, 33/51, 36/54,
+      21/45, 27/45, 33/45, 24/42, 30/42, 36/42,
+      21/33, 24/36, 27/30, 30/33, 33/30, 36/33,
+      21/24, 27/27, 33/24, 24/21, 30/21, 36/24,
+      42/33, 45/30, 48/33, 51/30, 54/33, 57/30,
+      42/24, 48/21, 54/24, 45/18, 51/18
+    }{
+      \fill[brand] (\px pt, \py pt) rectangle (\px pt + 3pt, \py pt + 3pt);
+    }
+    % Beschriftung
+    \node[anchor=south, font=\fontsize{4pt}{5pt}\selectfont\ttfamily,
+          text=midgray] at (30,0) {#1};
+  \end{tikzpicture}%
+}
+
+% =============================================================
+%  ITEM-TABELLEN-MACROS
+%  _invoice.tex ruft \Fee{Beschreibung}{Einzelpreis}{Menge} auf.
+%  Wir sammeln alle Zeilen in \allFeeRows (via etoolbox/\gappto).
+% =============================================================
+\newcounter{itemnum}
+\newcommand{\fmtnum}[1]{\ifnum#1<10 0\the#1\else\the#1\fi}
+
+\FPset{\invoiceSubtotal}{0}
+\newcommand{\allFeeRows}{}
+
+\newcommand{\Fee}[3]{%
+  \stepcounter{itemnum}%
+  \FPmul{\myLineTot}{#2}{#3}%
+  \FPround{\myLineTotR}{\myLineTot}{2}%
+  \FPadd{\myNewSub}{\invoiceSubtotal}{\myLineTotR}%
+  \FPround{\myNewSubR}{\myNewSub}{2}%
+  \xdef\invoiceSubtotal{\myNewSubR}%
+  \edef\curNum{\fmtnum{\value{itemnum}}}%
+  \edef\curDesc{#1}%
+  \edef\curQty{#3}%
+  \edef\curRate{#2}%
+  \edef\curTot{\myLineTotR}%
+  \gappto\allFeeRows{%
+    \textcolor{brand}{\textbf{\curNum}} &
+    \textbf{\curDesc} &
+    \curQty &
+    \curRate &
+    \curTot \\[1pt]%
+    \arrayrulecolor{lightgray}\hline
+  }%
+}
+
+% \ProjectTitle (von _invoice.tex.tmpl)
+\newcommand{\ProjectTitle}[1]{\gdef\theProjectTitle{#1}}
+\gdef\theProjectTitle{}
+
+% =============================================================
+%  DOKUMENT-BEGIN
+% =============================================================
+\begin{document}
+
+% Seitenfarbe
+\pagecolor{offwhite}
+\color{darktext}
+
+% Daten laden
+\input{_data.tex}
+\input{_invoice.tex}
+
+% Crop-Marks
+\cropmarks
+
+% =============================================================
+%  HEADER-STRIP
+% =============================================================
+\vspace*{-3mm}%
+\brandrule
+
+\vspace{1mm}
+\noindent
+\brandsquare\enspace
+{\fontsize{7pt}{8pt}\selectfont\textcolor{midgray}{%
+  DIGITAL SYSTEMS~$\bullet$~DESIGN SOLUTIONS%
+}}%
+\hfill
+{\fontsize{7pt}{8pt}\selectfont\textcolor{midgray}{%
+  INVOICE SYSTEM V1.0%
+}}%
+\enspace\brandsquare
+
+\vspace{1mm}
+\brandrule
+
+\vspace{5mm}
+
+% =============================================================
+%  LOGO-BLOCK LINKS | META-BLOCK RECHTS
+% =============================================================
+\noindent
+\begin{minipage}[t]{0.50\linewidth}
+  % Big-Type Wortmarke
+  {\fontsize{40pt}{42pt}\selectfont\textbf{\senderCompany}}%
+  \hspace{2mm}{\small\textcolor{midgray}{\textregistered}}
+
+  \vspace{3mm}
+  {\fontsize{8pt}{9pt}\selectfont\textcolor{midgray}{\senderName}}
+
+  \vspace{2mm}
+  {\small\textcolor{brand}{%
+    /\,/\,/\,/\,/\,/\,/\,/\,/\,/\,/\,/%
+  }}
+
+  \vspace{3mm}
+  \textcolor{brand}{\small\textbf{\MakeUppercase{\senderCompany}}}\\[0.5mm]
+  {\small\senderStreet}\\[0.3mm]
+  {\small\senderZIP\ \senderCity}\\[0.3mm]
+  {\small\senderEmail}
+\end{minipage}%
+\hfill
+\begin{minipage}[t]{0.46\linewidth}
+  \raggedright
+  \textcolor{brand}{\textbf{\small INVOICE}}
+
+  \vspace{2mm}
+  {\fontsize{21pt}{23pt}\selectfont\textbf{\invoiceReference}}
+
+  \vspace{4mm}
+  {\fontsize{8pt}{9pt}\selectfont
+  \renewcommand{\arraystretch}{1.4}
+  \begin{tabular}{@{}p{3.2cm}@{\hspace{1mm}}l@{}}
+    \metalabel{Date Issued:}  & \invoiceDate \\
+    \metalabel{Due Date:}     & \payDate \\
+    \metalabel{Status:}       & \textcolor{brand}{\textbf{Offen}} \\
+    \metalabel{Currency:}     & EUR \\
+  \end{tabular}
+  }
+
+  \vspace{4mm}
+  % Dekoratives Barcode-Element + rotiertes Firmen-Label
+  \begin{minipage}[c]{0.76\linewidth}
+    \decobarcode
+  \end{minipage}%
+  \hfill
+  \begin{minipage}[c]{0.18\linewidth}
+    \raggedleft\vertlabel{\MakeUppercase{\senderCompany}}
+  \end{minipage}
+\end{minipage}
+
+\vspace{5mm}
+\grayrule
+
+% =============================================================
+%  ZWEI-SPALTEN: BILLED TO | PROJEKT
+% =============================================================
+\vspace{3mm}
+
+\noindent
+\begin{minipage}[t]{7mm}
+  \vspace{6mm}
+  \vertlabel{CLIENT}
+\end{minipage}%
+\begin{minipage}[t]{0.44\linewidth}
+  \metalabel{Billed To}\\[1.5pt]
+  \textcolor{brand}{\rule{1.1cm}{0.7pt}}
+
+  \vspace{2mm}
+  {\small\textbf{%
+    \ifthenelse{\equal{\customerCompany}{}}%
+      {\customerName}%
+      {\customerCompany}%
+  }}\\[0.5mm]
+  {\small\customerName}\\[0.3mm]
+  {\small\customerStreet}\\[0.3mm]
+  {\small\customerZIP\ \customerCity}
+\end{minipage}%
+\hfill
+\begin{minipage}[t]{0.42\linewidth}
+  \metalabel{Project}\\[1.5pt]
+  \textcolor{brand}{\rule{1.1cm}{0.7pt}}
+
+  \vspace{2mm}
+  {\small\textbf{\theProjectTitle}}
+
+  \vspace{2mm}
+  {\fontsize{6.5pt}{7.5pt}\selectfont\textcolor{midgray}{%
+    INVOICE REF:~\invoiceReference%
+  }}
+\end{minipage}%
+\hfill
+\begin{minipage}[t]{7mm}
+  \vspace{6mm}
+  \vertlabel{SYSTEM ID}
+\end{minipage}
+
+\vspace{3mm}
+\grayrule
+
+% =============================================================
+%  ITEM-TABELLE
+% =============================================================
+\vspace{3mm}
+
+\noindent
+{\small
+\setlength{\tabcolsep}{4pt}
+\setlength{\extrarowheight}{2pt}
+\begin{tabularx}{\linewidth}{@{}
+  p{0.65cm}
+  >{\raggedright\arraybackslash}X
+  p{0.7cm}
+  >{\raggedleft\arraybackslash}p{2.4cm}
+  >{\raggedleft\arraybackslash}p{2.4cm}
+  @{}}
+\arrayrulecolor{brand}
+\hline
+{\metalabel{Item}} &
+{\metalabel{Description}} &
+{\metalabel{Qty}} &
+{\metalabel{Rate (EUR)}} &
+{\metalabel{Amount (EUR)}} \\[1pt]
+\arrayrulecolor{brand}
+\hline
+\arrayrulecolor{lightgray}
+\allFeeRows
+\end{tabularx}
+}
+
+% =============================================================
+%  SUMMEN
+% =============================================================
+\vspace{2mm}
+\noindent\hfill
+\begin{minipage}[t]{7.8cm}
+  {\small
+  \renewcommand{\arraystretch}{1.3}
+  \setlength{\tabcolsep}{4pt}
+  \begin{tabular}{@{}p{4.2cm}r@{}}
+    \arrayrulecolor{lightgray}
+    \textcolor{midgray}{Subtotal} & \invoiceSubtotal~EUR \\
+    \hline
+    \textcolor{midgray}{Umsatzsteuer} &
+    \ifthenelse{\equal{\vatID}{}}{---\,(\S\,19)}{{\vatRate}\,\%} \\[2pt]
+    \arrayrulecolor{brand}
+    \hline
+    \textbf{\textcolor{brand}{Total Due}} &
+    \textbf{\textcolor{brand}{\invoiceSubtotal~EUR}} \\
+  \end{tabular}
+  }
+\end{minipage}
+
+\vspace{3mm}
+\grayrule
+
+% =============================================================
+%  NOTES: Anrede / Text / Grussformel
+% =============================================================
+\vspace{3mm}
+
+\noindent
+\begin{minipage}[t]{0.56\linewidth}
+  \metalabel{Notes}\\[1.5pt]
+  \textcolor{brand}{\rule{1.1cm}{0.7pt}}
+
+  \vspace{2mm}
+  {\small\invoiceSalutation}
+
+  \vspace{1.5mm}
+  {\small\invoiceText}
+
+  \vspace{1.5mm}
+  {\small\invoiceClosing}
+\end{minipage}
+
+\vspace{3mm}
+\grayrule
+
+% =============================================================
+%  FOOTER: ZAHLUNGSINFO | QR | SYSTEMINFO
+% =============================================================
+\vspace{3mm}
+
+\noindent
+\begin{minipage}[t]{7mm}
+  \vspace{5mm}
+  \vertlabel{PAYMENT NODE}
+\end{minipage}%
+\begin{minipage}[t]{0.32\linewidth}
+  \metalabel{Payment Methods}\\[1.5pt]
+  \textcolor{brand}{\rule{1.1cm}{0.7pt}}
+
+  \vspace{1.5mm}
+  {\fontsize{8pt}{9pt}\selectfont
+    \textbf{Bankueberweisung}\\[0.3mm]
+    \accountRCPT\\[0.3mm]
+    IBAN:~\accountIBAN\\[0.3mm]
+    BIC:~\accountBIC\\[0.3mm]
+    Bank:~\accountBankName%
+  }
+\end{minipage}%
+\hfill
+\begin{minipage}[t]{0.24\linewidth}
+  \metalabel{Scan To Pay}\\[1.5pt]
+  \textcolor{brand}{\rule{1.1cm}{0.7pt}}
+
+  \vspace{1.5mm}
+  \qrplaceholder{\invoiceReference}
+
+  \vspace{0.5mm}
+  {\fontsize{6pt}{7pt}\selectfont\textcolor{midgray}{\invoiceReference}}
+\end{minipage}%
+\hfill
+\begin{minipage}[t]{0.32\linewidth}
+  \metalabel{System Information}\\[1.5pt]
+  \textcolor{brand}{\rule{1.1cm}{0.7pt}}
+
+  \vspace{1.5mm}
+  {\fontsize{7.5pt}{9pt}\selectfont
+  \renewcommand{\arraystretch}{1.3}
+  \begin{tabular}{@{}ll@{}}
+    \textcolor{midgray}{Invoice ID:} & \invoiceReference \\
+    \textcolor{midgray}{Issued by:}  & \senderName \\
+    \textcolor{midgray}{Tax Nr:}     & \taxID \\
+    \textcolor{midgray}{USt-ID:} &
+      \ifthenelse{\equal{\vatID}{}}{---}{\vatID} \\
+  \end{tabular}
+  }
+
+  \vspace{1.5mm}
+  % Paragraph 19 UStG Disclaimer (nur wenn vatID leer)
+  \ifthenelse{\equal{\vatID}{}}{%
+    {\fontsize{6.5pt}{7.5pt}\selectfont\textcolor{midgray}{%
+      Gem.~\S\,19\,UStG wird keine\\
+      Umsatzsteuer ausgewiesen.%
+    }}%
+  }{}
+\end{minipage}
+
+% =============================================================
+%  FOOTER-STRIP
+% =============================================================
+\vspace{4mm}
+\noindent
+{\fontsize{7pt}{8pt}\selectfont\textcolor{midgray}{%
+  //~ARCHIVE LOG:~\today%
+}}\hfill
+{\fontsize{7pt}{8pt}\selectfont\textcolor{midgray}{%
+  \brandsquare~\brandsquare~\brandsquare~\brandsquare~\brandsquare%
+}}
+
+\vspace{1.5mm}
+\brandrule
+
+\vspace{0.5mm}
+\noindent
+\hfill
+{\fontsize{7pt}{8pt}\selectfont\textcolor{midgray}{%
+  SECURE~$\bullet$~ENCRYPTED~$\bullet$~VERIFIED%
+}}
+\hfill
+\brandsquare
+
+\end{document}

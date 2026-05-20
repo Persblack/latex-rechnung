@@ -1,0 +1,5 @@
+{
+  "name": "Modern",
+  "description": "Tech-minimal Layout mit Monospace, blauen Akzenten und Crop-Marks (nach inspo/invoice-light)",
+  "supports": ["invoice"]
+}
