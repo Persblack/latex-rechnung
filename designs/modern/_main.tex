@@ -403,17 +403,34 @@
   {\small
   \renewcommand{\arraystretch}{1.3}
   \setlength{\tabcolsep}{4pt}
-  \begin{tabular}{@{}p{4.2cm}r@{}}
-    \arrayrulecolor{lightgray}
-    \textcolor{midgray}{Subtotal} & \invoiceSubtotal~EUR \\
-    \hline
-    \textcolor{midgray}{Umsatzsteuer} &
-    \ifthenelse{\equal{\vatID}{}}{---\,(\S\,19)}{{\vatRate}\,\%} \\[2pt]
-    \arrayrulecolor{brand}
-    \hline
-    \textbf{\textcolor{brand}{Total Due}} &
-    \textbf{\textcolor{brand}{\invoiceSubtotal~EUR}} \\
-  \end{tabular}
+  \ifHasAnyVat
+    % USt-pflichtige Rechnung: Subtotal + pro-Rate VAT rows + Brutto Total
+    \renewcommand{\VatBreakdownRow}[4]{%
+      \textcolor{midgray}{MwSt~#1\,\%} & #3~EUR \\
+    }%
+    \begin{tabular}{@{}p{4.2cm}r@{}}
+      \arrayrulecolor{lightgray}
+      \textcolor{midgray}{Subtotal} & \NetTotal~EUR \\
+      \hline
+      \VatBreakdownRows
+      \arrayrulecolor{brand}
+      \hline
+      \textbf{\textcolor{brand}{Total Due (brutto)}} &
+      \textbf{\textcolor{brand}{\GrossTotal~EUR}} \\
+    \end{tabular}
+  \else
+    % Kleinunternehmer: kein VAT
+    \begin{tabular}{@{}p{4.2cm}r@{}}
+      \arrayrulecolor{lightgray}
+      \textcolor{midgray}{Subtotal} & \NetTotal~EUR \\
+      \hline
+      \textcolor{midgray}{Umsatzsteuer} & ---\,(\S\,19) \\[2pt]
+      \arrayrulecolor{brand}
+      \hline
+      \textbf{\textcolor{brand}{Total Due}} &
+      \textbf{\textcolor{brand}{\NetTotal~EUR}} \\
+    \end{tabular}
+  \fi
   }
 \end{minipage}
 
