@@ -76,7 +76,7 @@
 		\ifdefempty{\customerStreet}{}{\customerStreet \\}%
 		\customerZIP \ \customerCity}
 	
-			\includegraphics[width=0.2\textwidth,height=1.5cm,keepaspectratio]{logo.png}			
+			\ifHasLogo\includegraphics[width=0.2\textwidth,height=1.5cm,keepaspectratio]{logo.png}\else{\Large\textbf{\shortName}}\fi
 			\opening{\invoiceSalutation}
 			\invoiceText
 		    \begin{invoice}{Euro}{\vatRate}
