@@ -264,17 +264,15 @@ func handleLieferschein(w http.ResponseWriter, r *http.Request) {
 	handleDoc(w, r, "lieferschein")
 }
 
-// docConfig is the per-docType build recipe. All file names are RELATIVE
-// — the actual on-disk source for mainTexName and extraFiles is resolved
-// against designs/<designKey>/ inside buildDocument, so the same recipe
-// works for any design that supports the docType.
+// docConfig is the per-docType build recipe. The build copies the mainTex
+// plus every other file in designs/<designKey>/ except design.json and
+// other docTypes' mainTex files, so each design ships only what it needs.
 type docConfig struct {
-	mainTexName string   // file name only, e.g. "_main.tex"
-	itemsTmpl   string   // shared template path inside embedded FS, e.g. "templates/_invoice.tex.tmpl"
-	itemsOut    string   // rendered snippet file name written into the build dir
-	extraFiles  []string // additional files copied from the design folder, e.g. ["invoice.sty","invoice.def"]
-	outputPDF   string   // pdflatex output name (derived from \jobname)
-	filePrefix  string   // HTTP download filename prefix
+	mainTexName string // file name only, e.g. "_main.tex"
+	itemsTmpl   string // shared template path inside embedded FS, e.g. "templates/_invoice.tex.tmpl"
+	itemsOut    string // rendered snippet file name written into the build dir
+	outputPDF   string // pdflatex output name (derived from \jobname)
+	filePrefix  string // HTTP download filename prefix
 }
 
 var docConfigs = map[string]docConfig{
@@ -282,7 +280,6 @@ var docConfigs = map[string]docConfig{
 		mainTexName: "_main.tex",
 		itemsTmpl:   "templates/_invoice.tex.tmpl",
 		itemsOut:    "_invoice.tex",
-		extraFiles:  []string{"invoice.sty", "invoice.def"},
 		outputPDF:   "_main.pdf",
 		filePrefix:  "rechnung",
 	},
@@ -290,10 +287,22 @@ var docConfigs = map[string]docConfig{
 		mainTexName: "_lieferschein_main.tex",
 		itemsTmpl:   "templates/_lieferschein_items.tex.tmpl",
 		itemsOut:    "_lieferschein_items.tex",
-		extraFiles:  []string{},
 		outputPDF:   "_lieferschein_main.pdf",
 		filePrefix:  "lieferschein",
 	},
+}
+
+// otherDocMainTeXNames returns the mainTexName of every docType *other*
+// than the one currently being built, so the build dir for an invoice
+// doesn't get polluted with the lieferschein's _lieferschein_main.tex.
+func otherDocMainTeXNames(currentDocType string) map[string]bool {
+	excluded := map[string]bool{}
+	for k, c := range docConfigs {
+		if k != currentDocType {
+			excluded[c.mainTexName] = true
+		}
+	}
+	return excluded
 }
 
 func handleDoc(w http.ResponseWriter, r *http.Request, docType string) {
@@ -325,7 +334,7 @@ func handleDoc(w http.ResponseWriter, r *http.Request, docType string) {
 	}
 
 	cfg := docConfigs[docType]
-	pdfPath, cleanup, err := buildDocument(req, p, cfg, designKey)
+	pdfPath, cleanup, err := buildDocument(req, p, cfg, designKey, docType)
 	defer cleanup()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -345,7 +354,7 @@ func handleDoc(w http.ResponseWriter, r *http.Request, docType string) {
 	io.Copy(w, f)
 }
 
-func buildDocument(req InvoiceRequest, p *Profile, cfg docConfig, designKey string) (pdfPath string, cleanup func(), err error) {
+func buildDocument(req InvoiceRequest, p *Profile, cfg docConfig, designKey, docType string) (pdfPath string, cleanup func(), err error) {
 	noop := func() {}
 
 	tmpDir, err := os.MkdirTemp("", "rechnung-*")
@@ -354,18 +363,33 @@ func buildDocument(req InvoiceRequest, p *Profile, cfg docConfig, designKey stri
 	}
 	cleanup = func() { os.RemoveAll(tmpDir) }
 
-	// Copy the design's LaTeX sources into the build dir. Source paths
-	// are resolved against designs/<designKey>/ inside the embedded FS.
+	// Copy every file the design ships, so designs can include arbitrary
+	// .sty/.def/.tex/.png assets without registering them anywhere.
+	// design.json is metadata and gets excluded; other docTypes' mainTex
+	// files are also excluded to keep the build dir lean and avoid
+	// surprising \input chains.
 	designDir := "designs/" + designKey + "/"
-	filesToCopy := append([]string{cfg.mainTexName}, cfg.extraFiles...)
-	for _, f := range filesToCopy {
-		data, err := embedded.ReadFile(designDir + f)
+	entries, err := embedded.ReadDir(strings.TrimSuffix(designDir, "/"))
+	if err != nil {
+		return "", cleanup, fmt.Errorf("read design dir %s: %w", designDir, err)
+	}
+	excluded := otherDocMainTeXNames(docType)
+	excluded["design.json"] = true
+	for _, e := range entries {
+		if e.IsDir() || excluded[e.Name()] {
+			continue
+		}
+		data, err := embedded.ReadFile(designDir + e.Name())
 		if err != nil {
-			return "", cleanup, fmt.Errorf("read embedded %s%s: %w", designDir, f, err)
+			return "", cleanup, fmt.Errorf("read embedded %s%s: %w", designDir, e.Name(), err)
 		}
-		if err := os.WriteFile(filepath.Join(tmpDir, f), data, 0644); err != nil {
-			return "", cleanup, fmt.Errorf("write %s: %w", f, err)
+		if err := os.WriteFile(filepath.Join(tmpDir, e.Name()), data, 0644); err != nil {
+			return "", cleanup, fmt.Errorf("write %s: %w", e.Name(), err)
 		}
+	}
+	// The mainTex must exist; surface a clearer error if the design forgot it.
+	if _, err := os.Stat(filepath.Join(tmpDir, cfg.mainTexName)); err != nil {
+		return "", cleanup, fmt.Errorf("design %q is missing required %s", designKey, cfg.mainTexName)
 	}
 
 	// Copy the profile's logo into the temp dir as logo.png.
