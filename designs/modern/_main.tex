@@ -273,8 +273,10 @@
 % =============================================================
 \noindent
 \begin{minipage}[t]{0.50\linewidth}
-  % Big-Type Wortmarke
-  {\fontsize{40pt}{42pt}\selectfont\textbf{\senderCompany}}%
+  % Big-Type Wortmarke — wrapped in \parbox so that \\ in \senderCompany
+  % (multi-line company names from profiles with senderCompanyLines) does not
+  % trigger the "Not allowed in LR mode" error in pdflatex.
+  \parbox[t]{0.96\linewidth}{\fontsize{40pt}{44pt}\selectfont\textbf{\senderCompany}}%
   \hspace{2mm}{\small\textcolor{midgray}{\textregistered}}
 
   \vspace{2mm}
@@ -303,6 +305,8 @@
     \metalabel{Due Date:}     & \payDate \\
     \metalabel{Status:}       & \textcolor{brand}{\textbf{Offen}} \\
     \metalabel{Currency:}     & EUR \\
+    \multicolumn{2}{@{}l@{}}{\textcolor{midgray}{\fontsize{6.5pt}{7.5pt}\selectfont
+      Leistungsdatum entspricht dem Rechnungsdatum.}} \\
   \end{tabular}
   }
 
@@ -494,8 +498,8 @@
   % Paragraph 19 UStG Disclaimer (nur wenn vatID leer)
   \ifthenelse{\equal{\vatID}{}}{%
     {\fontsize{6.5pt}{7.5pt}\selectfont\textcolor{midgray}{%
-      Gem.~\S\,19\,UStG wird keine\\
-      Umsatzsteuer ausgewiesen.%
+      Gem\"{a}ß \S\,19 UStG wird keine\\
+      Umsatzsteuer berechnet.%
     }}%
   }{}
 \end{minipage}
