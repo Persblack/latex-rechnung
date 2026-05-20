@@ -16,8 +16,13 @@ import (
 	"text/template"
 )
 
-//go:embed static all:templates all:latex
+//go:embed static all:templates all:designs
 var embedded embed.FS
+
+// defaultDesign is used when an InvoiceRequest omits the design field.
+// Keeps existing /generate and /lieferschein clients (and the embedded
+// dashboard prior to upgrade) working unchanged.
+const defaultDesign = "classic"
 
 // Profile holds sender identity data loaded from a profiles/*.json file.
 type Profile struct {
@@ -49,6 +54,7 @@ type LineItem struct {
 
 type InvoiceRequest struct {
 	ProfileKey        string     `json:"profileKey"`
+	Design            string     `json:"design"`
 	InvoiceDate       string     `json:"invoiceDate"`
 	PayDate           string     `json:"payDate"`
 	InvoiceReference  string     `json:"invoiceReference"`
@@ -102,11 +108,25 @@ type TemplateData struct {
 	Items             []LineItem
 }
 
+// Design describes one visual layout variant. The actual .tex/.sty/.def
+// files live under designs/<Key>/ inside the embedded FS; design.json
+// supplies the human-readable metadata loaded by loadDesigns.
+type Design struct {
+	Key         string   `json:"key"`
+	Name        string   `json:"name"`
+	Description string   `json:"description"`
+	Supports    []string `json:"supports"`
+}
+
 var profiles = map[string]*Profile{}
+var designs = map[string]*Design{}
 
 func main() {
 	if err := loadProfiles("profiles"); err != nil {
 		log.Printf("warning: could not load profiles: %v", err)
+	}
+	if err := loadDesigns("designs"); err != nil {
+		log.Printf("warning: could not load designs: %v", err)
 	}
 
 	mux := http.NewServeMux()
@@ -115,6 +135,8 @@ func main() {
 	mux.Handle("/", http.FileServer(http.FS(staticFS)))
 	mux.HandleFunc("GET /api/profiles", handleProfiles)
 	mux.HandleFunc("GET /api/profiles/{key}", handleProfile)
+	mux.HandleFunc("GET /api/designs", handleDesigns)
+	mux.HandleFunc("GET /api/designs/{key}", handleDesign)
 	mux.HandleFunc("POST /generate", handleGenerate)
 	mux.HandleFunc("POST /lieferschein", handleLieferschein)
 
@@ -172,6 +194,68 @@ func handleProfile(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(p)
 }
 
+func loadDesigns(dir string) error {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		return err
+	}
+	for _, e := range entries {
+		if !e.IsDir() {
+			continue
+		}
+		manifest := filepath.Join(dir, e.Name(), "design.json")
+		data, err := os.ReadFile(manifest)
+		if err != nil {
+			log.Printf("skipping design %q: no design.json (%v)", e.Name(), err)
+			continue
+		}
+		var d Design
+		if err := json.Unmarshal(data, &d); err != nil {
+			log.Printf("skipping design %q (invalid JSON): %v", e.Name(), err)
+			continue
+		}
+		d.Key = e.Name()
+		designs[d.Key] = &d
+		log.Printf("loaded design %q (%s)", d.Key, d.Name)
+	}
+	return nil
+}
+
+func handleDesigns(w http.ResponseWriter, r *http.Request) {
+	list := make([]Design, 0, len(designs))
+	for _, d := range designs {
+		list = append(list, *d)
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(list)
+}
+
+func handleDesign(w http.ResponseWriter, r *http.Request) {
+	key := r.PathValue("key")
+	d, ok := designs[key]
+	if !ok {
+		http.Error(w, "design not found", http.StatusNotFound)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(d)
+}
+
+// designSupports reports whether design d covers the given docType.
+// An empty supports slice is treated as "supports all" for backwards-compat
+// with hand-authored design.json files that omit the field.
+func designSupports(d *Design, docType string) bool {
+	if len(d.Supports) == 0 {
+		return true
+	}
+	for _, s := range d.Supports {
+		if s == docType {
+			return true
+		}
+	}
+	return false
+}
+
 func handleGenerate(w http.ResponseWriter, r *http.Request) {
 	handleDoc(w, r, "invoice")
 }
@@ -180,31 +264,35 @@ func handleLieferschein(w http.ResponseWriter, r *http.Request) {
 	handleDoc(w, r, "lieferschein")
 }
 
+// docConfig is the per-docType build recipe. All file names are RELATIVE
+// — the actual on-disk source for mainTexName and extraFiles is resolved
+// against designs/<designKey>/ inside buildDocument, so the same recipe
+// works for any design that supports the docType.
 type docConfig struct {
-	mainTex    string
-	itemsTmpl  string
-	itemsOut   string
-	extraFiles []string
-	outputPDF  string
-	filePrefix string
+	mainTexName string   // file name only, e.g. "_main.tex"
+	itemsTmpl   string   // shared template path inside embedded FS, e.g. "templates/_invoice.tex.tmpl"
+	itemsOut    string   // rendered snippet file name written into the build dir
+	extraFiles  []string // additional files copied from the design folder, e.g. ["invoice.sty","invoice.def"]
+	outputPDF   string   // pdflatex output name (derived from \jobname)
+	filePrefix  string   // HTTP download filename prefix
 }
 
 var docConfigs = map[string]docConfig{
 	"invoice": {
-		mainTex:    "_main.tex",
-		itemsTmpl:  "templates/_invoice.tex.tmpl",
-		itemsOut:   "_invoice.tex",
-		extraFiles: []string{"invoice.sty", "invoice.def"},
-		outputPDF:  "_main.pdf",
-		filePrefix: "rechnung",
+		mainTexName: "_main.tex",
+		itemsTmpl:   "templates/_invoice.tex.tmpl",
+		itemsOut:    "_invoice.tex",
+		extraFiles:  []string{"invoice.sty", "invoice.def"},
+		outputPDF:   "_main.pdf",
+		filePrefix:  "rechnung",
 	},
 	"lieferschein": {
-		mainTex:    "_lieferschein_main.tex",
-		itemsTmpl:  "templates/_lieferschein_items.tex.tmpl",
-		itemsOut:   "_lieferschein_items.tex",
-		extraFiles: []string{},
-		outputPDF:  "_lieferschein_main.pdf",
-		filePrefix: "lieferschein",
+		mainTexName: "_lieferschein_main.tex",
+		itemsTmpl:   "templates/_lieferschein_items.tex.tmpl",
+		itemsOut:    "_lieferschein_items.tex",
+		extraFiles:  []string{},
+		outputPDF:   "_lieferschein_main.pdf",
+		filePrefix:  "lieferschein",
 	},
 }
 
@@ -220,8 +308,24 @@ func handleDoc(w http.ResponseWriter, r *http.Request, docType string) {
 		return
 	}
 
+	// Resolve design key with backwards-compat fallback. An empty field
+	// keeps the pre-refactor request shape valid.
+	designKey := req.Design
+	if designKey == "" {
+		designKey = defaultDesign
+	}
+	d, ok := designs[designKey]
+	if !ok {
+		http.Error(w, "unknown design: "+designKey, http.StatusBadRequest)
+		return
+	}
+	if !designSupports(d, docType) {
+		http.Error(w, fmt.Sprintf("design %q does not support %s", designKey, docType), http.StatusBadRequest)
+		return
+	}
+
 	cfg := docConfigs[docType]
-	pdfPath, cleanup, err := buildDocument(req, p, cfg)
+	pdfPath, cleanup, err := buildDocument(req, p, cfg, designKey)
 	defer cleanup()
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
@@ -241,7 +345,7 @@ func handleDoc(w http.ResponseWriter, r *http.Request, docType string) {
 	io.Copy(w, f)
 }
 
-func buildDocument(req InvoiceRequest, p *Profile, cfg docConfig) (pdfPath string, cleanup func(), err error) {
+func buildDocument(req InvoiceRequest, p *Profile, cfg docConfig, designKey string) (pdfPath string, cleanup func(), err error) {
 	noop := func() {}
 
 	tmpDir, err := os.MkdirTemp("", "rechnung-*")
@@ -250,12 +354,14 @@ func buildDocument(req InvoiceRequest, p *Profile, cfg docConfig) (pdfPath strin
 	}
 	cleanup = func() { os.RemoveAll(tmpDir) }
 
-	// Copy embedded LaTeX files into temp dir.
-	filesToCopy := append([]string{cfg.mainTex}, cfg.extraFiles...)
+	// Copy the design's LaTeX sources into the build dir. Source paths
+	// are resolved against designs/<designKey>/ inside the embedded FS.
+	designDir := "designs/" + designKey + "/"
+	filesToCopy := append([]string{cfg.mainTexName}, cfg.extraFiles...)
 	for _, f := range filesToCopy {
-		data, err := embedded.ReadFile("latex/" + f)
+		data, err := embedded.ReadFile(designDir + f)
 		if err != nil {
-			return "", cleanup, fmt.Errorf("read embedded %s: %w", f, err)
+			return "", cleanup, fmt.Errorf("read embedded %s%s: %w", designDir, f, err)
 		}
 		if err := os.WriteFile(filepath.Join(tmpDir, f), data, 0644); err != nil {
 			return "", cleanup, fmt.Errorf("write %s: %w", f, err)
@@ -331,7 +437,7 @@ func buildDocument(req InvoiceRequest, p *Profile, cfg docConfig) (pdfPath strin
 	// Only check the exit code on the final run — the first run commonly
 	// returns exit 1 due to unresolved cross-references / missing .aux.
 	for i := range 2 {
-		cmd := exec.Command("pdflatex", "-interaction=nonstopmode", cfg.mainTex)
+		cmd := exec.Command("pdflatex", "-interaction=nonstopmode", cfg.mainTexName)
 		cmd.Dir = tmpDir
 		var out bytes.Buffer
 		cmd.Stdout = &out
