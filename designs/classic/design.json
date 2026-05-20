@@ -1,0 +1,5 @@
+{
+  "name": "Classic",
+  "description": "Standard-Layout mit Oliver Corffs invoice-Paket und KOMA scrlttr2",
+  "supports": ["invoice", "lieferschein"]
+}
