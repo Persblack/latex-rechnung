@@ -214,7 +214,11 @@
 	\ST@Reset\Total@Reset%
 	\def\BC{#1}%
 	\def\VAT@rate{#2}%
-	\ifx\VAT@rate\Null\VATnonzerofalse\else\VATnonzerotrue\fi%
+	% Patched 2026-05-20: Use \FPifzero for the VATnonzero flag so that
+	% the check works even when #2 is a LaTeX macro that expands to "0"
+	% (the original \ifx\VAT@rate\Null comparison only works for literal
+	% tokens and fails when \vatRate is passed as a command reference).
+	\FPifzero{\VAT@rate}\VATnonzerofalse\else\VATnonzerotrue\fi%
 	\ifVATnonzero
 		\message{^^J^^JVAT is not zero!^^J^^J}%
 	\else
@@ -883,10 +887,18 @@
 	%	\Print@Value{\theST@Fee}\\%
 }%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Patched 2026-05-20: guard with \FPifzero so that Kleinunternehmer
+% invoices (vatRate=0, passed as a LaTeX macro that expands to "0") do
+% not print a misleading "MWSt. (0%)  0.00" line.  The original \ifx
+% comparison against \Null did not work when \VAT@rate holds a macro
+% reference rather than the literal token "0".
 \newcommand{\ST@VAT@Printout}{%
+	\FPifzero{\VAT@rate}%
+	\else%
 		\VAT\ (\VAT@rate\%)	 &	&	&	&%
 			\setcounter{ST@VAT}{\theST@Fee * \real{\VAT@rate} / 100}%
 				\Print@Value{\theST@VAT}\\%
+	\fi%
 }%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \newcommand{\Expense@BaseCurrency}[2]{%
