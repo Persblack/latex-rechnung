@@ -266,21 +266,6 @@
 \vspace*{-3mm}%
 \brandrule
 
-\vspace{1mm}
-\noindent
-\brandsquare\enspace
-{\fontsize{7pt}{8pt}\selectfont\textcolor{midgray}{%
-  DIGITAL SYSTEMS~$\bullet$~DESIGN SOLUTIONS%
-}}%
-\hfill
-{\fontsize{7pt}{8pt}\selectfont\textcolor{midgray}{%
-  INVOICE SYSTEM V1.0%
-}}%
-\enspace\brandsquare
-
-\vspace{1mm}
-\brandrule
-
 \vspace{5mm}
 
 % =============================================================
@@ -292,16 +277,12 @@
   {\fontsize{40pt}{42pt}\selectfont\textbf{\senderCompany}}%
   \hspace{2mm}{\small\textcolor{midgray}{\textregistered}}
 
-  \vspace{3mm}
-  {\fontsize{8pt}{9pt}\selectfont\textcolor{midgray}{\senderName}}
-
   \vspace{2mm}
   {\small\textcolor{brand}{%
     /\,/\,/\,/\,/\,/\,/\,/\,/\,/\,/\,/%
   }}
 
   \vspace{3mm}
-  \textcolor{brand}{\small\textbf{\MakeUppercase{\senderCompany}}}\\[0.5mm]
   {\small\senderStreet}\\[0.3mm]
   {\small\senderZIP\ \senderCity}\\[0.3mm]
   {\small\senderEmail}
@@ -326,14 +307,8 @@
   }
 
   \vspace{4mm}
-  % Dekoratives Barcode-Element + rotiertes Firmen-Label
-  \begin{minipage}[c]{0.76\linewidth}
-    \decobarcode
-  \end{minipage}%
-  \hfill
-  \begin{minipage}[c]{0.18\linewidth}
-    \raggedleft\vertlabel{\MakeUppercase{\senderCompany}}
-  \end{minipage}
+  % Dekoratives Barcode-Element
+  \decobarcode
 \end{minipage}
 
 \vspace{5mm}
