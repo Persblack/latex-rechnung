@@ -408,11 +408,49 @@
     </div>
   </div>
 
+  <!-- Zahlung -->
+  <div class="card">
+    <h2>Zahlung</h2>
+    <fieldset style="border:none;padding:0;margin:0">
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <label style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:normal;color:var(--gray-800)">
+          <input type="radio" name="paymentMode" value="transfer" checked> Überweisung
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:normal;color:var(--gray-800)">
+          <input type="radio" name="paymentMode" value="cash_due"> Barzahlung bei Übergabe
+        </label>
+        <label style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:normal;color:var(--gray-800)">
+          <input type="radio" name="paymentMode" value="cash_paid"> Bereits bar bezahlt (Quittungs-Modus)
+        </label>
+      </div>
+    </fieldset>
+    <div id="cashPaidDateWrap" style="display:none;margin-top:12px">
+      <label for="cashPaidDate">Zahlungsdatum</label>
+      <input type="date" id="cashPaidDate">
+    </div>
+  </div>
+
+  <!-- Hinweise -->
+  <div class="card">
+    <h2>Hinweise <span style="font-weight:400;text-transform:none;letter-spacing:normal;font-size:12px;color:var(--gray-400)">(optional)</span></h2>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <label style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:normal;color:var(--gray-800)">
+        <input type="checkbox" id="clauseWarranty"> Gewährleistungsausschluss
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:normal;color:var(--gray-800)">
+        <input type="checkbox" id="clauseRetention"> Eigentumsvorbehalt
+      </label>
+      <label style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:normal;color:var(--gray-800)">
+        <input type="checkbox" id="clauseLateFee"> Verzugszinsen-Hinweis
+      </label>
+    </div>
+  </div>
+
   <!-- Positionen -->
   <div class="card">
     <h2>Positionen</h2>
     <div style="margin-bottom:16px">
-      <label for="projectTitle">Projekttitel *</label>
+      <label for="projectTitle">Projekt / Bezug <span style="color:var(--gray-400)">(optional, leer lassen für Produktverkauf)</span></label>
       <input type="text" id="projectTitle" placeholder="z.B. Catering 01.04.2026">
     </div>
     <div class="items-wrap" id="itemsWrap">
@@ -532,6 +570,21 @@
   $('useVat').addEventListener('change', syncVatClass);
   syncVatClass();
 
+  // Payment mode: show/hide cashPaidDate input.
+  function syncPaymentMode() {
+    const mode = document.querySelector('input[name="paymentMode"]:checked')?.value || 'transfer';
+    const wrap = $('cashPaidDateWrap');
+    wrap.style.display = mode === 'cash_paid' ? 'block' : 'none';
+    if (mode === 'cash_paid' && !$('cashPaidDate').value) {
+      // Default to today in ISO format (YYYY-MM-DD for type=date input).
+      $('cashPaidDate').value = new Date().toISOString().slice(0, 10);
+    }
+  }
+  document.querySelectorAll('input[name="paymentMode"]').forEach(r => {
+    r.addEventListener('change', syncPaymentMode);
+  });
+  syncPaymentMode();
+
   // Line items.
   function addItem(desc = '', price = '', qty = '', vatRate = '19') {
     const row = document.createElement('div');
@@ -621,6 +674,19 @@
 
     if (items.length === 0) { showError('Mindestens eine vollständige Position erforderlich.'); return; }
 
+    const paymentMode = document.querySelector('input[name="paymentMode"]:checked')?.value || 'transfer';
+    const clauses = [];
+    if ($('clauseWarranty').checked) clauses.push('warranty_excluded');
+    if ($('clauseRetention').checked) clauses.push('retention_of_title');
+    if ($('clauseLateFee').checked) clauses.push('late_fee_warning');
+    // Convert ISO date (type=date value) to DD.MM.YYYY for LaTeX.
+    const rawCashDate = $('cashPaidDate').value;
+    let cashPaidDate = '';
+    if (rawCashDate) {
+      const [y, m, d] = rawCashDate.split('-');
+      cashPaidDate = `${d}.${m}.${y}`;
+    }
+
     const payload = {
       profileKey,
       design:            $('design').value,
@@ -640,6 +706,9 @@
       useVat,
       hideQR: !$('showQR').checked,
       language: $('langEnglish').checked ? 'en' : 'de',
+      paymentMode,
+      cashPaidDate,
+      clauses,
       items,
     };
 

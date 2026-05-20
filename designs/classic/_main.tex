@@ -58,10 +58,12 @@
 		 \ifEnglish Tax No.\else Steuernummer\fi & \taxID \\
 		 \ifdefempty{\vatID}{}{\ifEnglish VAT ID\else USt-IdNr.\fi & \vatID \\}
 		 \\
+		 \ifPaymentTransfer
 		 \ifEnglish Bank\else Institut\fi & \accountBankName \\
 		 IBAN & \accountIBAN \\
 		 BIC & \accountBIC \\
 		 \\
+		 \fi
 		 \ifEnglish Invoice No.\else Rechnungsnr.\fi & \invoiceReference \\
 		 \multicolumn{2}{r}{\scriptsize\ifEnglish Service date equals invoice date.\else Leistungsdatum entspricht dem Rechnungsdatum.\fi}
 	\end{tabular}
@@ -122,6 +124,33 @@
 		}
 		\fi
 
+		\ifPaymentCashDue
+		\par\medskip
+		\textbf{\ifEnglish Cash on Delivery:\else Barzahlung:\fi}~%
+		\ifEnglish Please pay the amount in cash upon delivery.\else Bitte zahlen Sie den Betrag in bar bei Übergabe.\fi
+		\fi
+		\ifPaymentCashPaid
+		\par\medskip
+		\textbf{\ifEnglish Paid in Cash:\else Bar bezahlt:\fi}~%
+		\ifEnglish Amount received in cash with thanks on \cashPaidDate.\else Betrag dankend in bar erhalten am \cashPaidDate.\fi
+		\fi
+
+		\ifShowWarrantyExcluded
+		\par\smallskip
+		\footnotesize\textit{\ifEnglish The sale is made under exclusion of any warranty.\else Der Verkauf erfolgt unter Ausschluss jeglicher Gewährleistung.\fi}
+		\normalsize
+		\fi
+		\ifShowRetentionOfTitle
+		\par\smallskip
+		\footnotesize\textit{\ifEnglish Goods remain property of the seller until full payment.\else Die Ware bleibt bis zur vollständigen Bezahlung Eigentum des Verkäufers.\fi}
+		\normalsize
+		\fi
+		\ifShowLateFeeWarning
+		\par\smallskip
+		\footnotesize\textit{\ifEnglish Late payment incurs statutory interest (5 percentage points above the base rate; 9 percentage points for B2B) pursuant to \S\S\ 288, 286 BGB.\else Bei Zahlungsverzug werden gesetzliche Verzugszinsen (5 Prozentpunkte über Basiszinssatz, im B2B 9 Prozentpunkte) gemäß \S\S\ 288, 286 BGB erhoben.\fi}
+		\normalsize
+		\fi
+
 		\ifdefempty{\vatID}{%
 		\ps\ifEnglish
 		  Pursuant to \S\,19 UStG (German VAT Act) no value-added tax is included in the invoice total.%
@@ -129,8 +158,8 @@
 		  Im ausgewiesenen Betrag ist gemäß § 19 UStG keine Umsatzsteuer enthalten.%
 		\fi
 		}{}
-		
-		\renewcommand*{\raggedsignature}{\raggedright} 
+
+		\renewcommand*{\raggedsignature}{\raggedright}
 		\closing{\invoiceClosing}
 		\invoiceEnclosures
 
