@@ -8,7 +8,7 @@
 \usepackage{lmodern}
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
-\usepackage[ngerman]{babel}
+\usepackage[main=ngerman,english]{babel}
 \usepackage{color}
 \usepackage[hidelinks]{hyperref}
 \usepackage{etoolbox}
@@ -25,7 +25,7 @@
 \setkomavar{fromphone}{\senderTelephone}
 \setkomavar{frommobilephone}{\senderMobilephone}
 \setkomavar{fromemail}{\href{mailto:\senderEmail}{\nolinkurl{\senderEmail}}}
-\setkomavar{subject}{Lieferschein}
+\setkomavar{subject}{\ifEnglish Delivery Note\else Lieferschein\fi}
 % Lieferschein-Nr. moved into firsthead table (like in _main.tex)
 % to avoid the overlap bug with the location sidebar.
 \setkomavar{location}{}
@@ -37,25 +37,29 @@
    \flushright
    \color[gray]{.3}%
 	\begin{tabular}{rl}
-		 Anschrift & \shortstack[r]{\senderCompany}\\
+		 \ifEnglish Address\else Anschrift\fi & \shortstack[r]{\senderCompany}\\
 		 & \senderStreet\\
 		 & \senderZIP  \ \senderCity \\
 		 \\
-		 Mobil  & \usekomavar{frommobilephone} \\
-		 E-Mail  & \usekomavar{fromemail} \\
-		 Webseite & {\normalfont\ttfamily  \senderWeb } \\
+		 \ifEnglish Mobile\else Mobil\fi  & \usekomavar{frommobilephone} \\
+		 \ifEnglish Email\else E-Mail\fi  & \usekomavar{fromemail} \\
+		 \ifEnglish Website\else Webseite\fi & {\normalfont\ttfamily  \senderWeb } \\
 		 \\
-		 Steuernummer & \taxID \\
-		 \ifdefempty{\vatID}{}{USt-IdNr. & \vatID \\}
+		 \ifEnglish Tax No.\else Steuernummer\fi & \taxID \\
+		 \ifdefempty{\vatID}{}{\ifEnglish VAT ID\else USt-IdNr.\fi & \vatID \\}
 		 \\
-		 Lieferschein-Nr. & \invoiceReference \\
-		 \multicolumn{2}{r}{\scriptsize Leistungsdatum entspricht dem Rechnungsdatum.}
+		 \ifEnglish Delivery Note No.\else Lieferschein-Nr.\fi & \invoiceReference \\
+		 \multicolumn{2}{r}{\scriptsize\ifEnglish Service date equals invoice date.\else Leistungsdatum entspricht dem Rechnungsdatum.\fi}
 	\end{tabular}
    }%
 }
 
 
 \begin{document}
+
+% Switch babel language for English requests
+\ifEnglish\selectlanguage{english}\fi
+
 	\begin{letter}{%
 		\ifdefempty{\customerCompany}{}{\customerCompany \\}%
 		\ifdefempty{\customerName}{}{\customerName \\}%
