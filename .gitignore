@@ -127,3 +127,17 @@ sympy-plots-for-*.tex/
 # WinEdt
 *.bak
 *.sav
+
+## macOS
+.DS_Store
+
+## generated PDFs in repo root (intermediate during isolated tests)
+_main.pdf
+_lieferschein_main.pdf
+
+
+## Umbrella agent symlinks (point outside repo, kept local-only)
+.claude/agents/latex-engineer.md
+.claude/agents/typographer.md
+.claude/agents/editor.md
+.claude/agents/bibliographer.md
