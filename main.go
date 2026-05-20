@@ -84,8 +84,11 @@ type InvoiceRequest struct {
 	CustomerCity      string     `json:"customerCity"`
 	ProjectTitle      string     `json:"projectTitle"`
 	UseVat            bool       `json:"useVat"`
-	HideQR            bool       `json:"hideQR"`   // when true, designs suppress the QR-code block. Default false = QR rendered.
-	Language          string     `json:"language"` // "de" (default) or "en". Empty => "de".
+	HideQR            bool       `json:"hideQR"`        // when true, designs suppress the QR-code block. Default false = QR rendered.
+	Language          string     `json:"language"`      // "de" (default) or "en". Empty => "de".
+	PaymentMode       string     `json:"paymentMode"`   // "transfer" (default) | "cash_due" | "cash_paid"
+	CashPaidDate      string     `json:"cashPaidDate"`  // ISO or DE date string, only used when paymentMode=cash_paid
+	Clauses           []string   `json:"clauses"`       // any of: "warranty_excluded", "retention_of_title", "late_fee_warning"
 	Items             []LineItem `json:"items"`
 }
 
@@ -141,6 +144,21 @@ type TemplateData struct {
 
 	// Output language. Default: German. English when req.Language == "en".
 	IsEnglish bool
+
+	// Project title visibility.
+	HasProjectTitle bool // true when req.ProjectTitle != ""
+
+	// Payment mode flags — exactly one is true per request.
+	PaymentMode       string // "transfer" | "cash_due" | "cash_paid"
+	IsPaymentTransfer bool
+	IsPaymentCashDue  bool
+	IsPaymentCashPaid bool
+	CashPaidDate      string // latex-escaped date shown in cash_paid receipts
+
+	// Optional legal clause flags.
+	ShowWarrantyExcluded bool
+	ShowRetentionOfTitle bool
+	ShowLateFeeWarning   bool
 }
 
 // Design describes one visual layout variant. The actual .tex/.sty/.def
@@ -601,6 +619,18 @@ func buildDocument(req InvoiceRequest, p *Profile, cfg docConfig, designKey, doc
 	hasAnyVat := req.UseVat && len(nonZeroRates) > 0
 	hasMultipleVatRates := len(nonZeroRates) > 1
 
+	// Resolve payment mode; default to "transfer" when omitted for backwards-compat.
+	paymentMode := req.PaymentMode
+	if paymentMode == "" {
+		paymentMode = "transfer"
+	}
+
+	// Resolve clause flags.
+	clauseSet := map[string]bool{}
+	for _, c := range req.Clauses {
+		clauseSet[c] = true
+	}
+
 	data := TemplateData{
 		TaxID:             latexEscape(p.TaxID),
 		SenderName:        latexEscape(p.SenderName),
@@ -645,6 +675,18 @@ func buildDocument(req InvoiceRequest, p *Profile, cfg docConfig, designKey, doc
 
 		ShowQR:    !req.HideQR,
 		IsEnglish: strings.EqualFold(req.Language, "en"),
+
+		HasProjectTitle: req.ProjectTitle != "",
+
+		PaymentMode:       paymentMode,
+		IsPaymentTransfer: paymentMode == "transfer",
+		IsPaymentCashDue:  paymentMode == "cash_due",
+		IsPaymentCashPaid: paymentMode == "cash_paid",
+		CashPaidDate:      latexEscape(req.CashPaidDate),
+
+		ShowWarrantyExcluded: clauseSet["warranty_excluded"],
+		ShowRetentionOfTitle: clauseSet["retention_of_title"],
+		ShowLateFeeWarning:   clauseSet["late_fee_warning"],
 	}
 
 	if err := renderTemplate(tmpDir, "_data.tex", "templates/_data.tex.tmpl", data); err != nil {
