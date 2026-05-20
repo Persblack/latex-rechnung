@@ -63,6 +63,28 @@
 % =============== LANGUAGE TOGGLE ===============
 
 
+% =============== INVOICE-MODES ===============
+\newif\ifHasProjectTitle
+{{if .HasProjectTitle}}\HasProjectTitletrue{{else}}\HasProjectTitlefalse{{end}}
+
+\newif\ifPaymentTransfer
+\newif\ifPaymentCashDue
+\newif\ifPaymentCashPaid
+{{if .IsPaymentTransfer}}\PaymentTransfertrue{{end}}
+{{if .IsPaymentCashDue}}\PaymentCashDuetrue{{end}}
+{{if .IsPaymentCashPaid}}\PaymentCashPaidtrue{{end}}
+
+\newcommand{\cashPaidDate}{{{.CashPaidDate}}}
+
+\newif\ifShowWarrantyExcluded
+\newif\ifShowRetentionOfTitle
+\newif\ifShowLateFeeWarning
+{{if .ShowWarrantyExcluded}}\ShowWarrantyExcludedtrue{{end}}
+{{if .ShowRetentionOfTitle}}\ShowRetentionOfTitletrue{{end}}
+{{if .ShowLateFeeWarning}}\ShowLateFeeWarningtrue{{end}}
+% =============== INVOICE-MODES ===============
+
+
 % =============== VAT BREAKDOWN ===============
 \providecommand{\VatBreakdownRow}[4]{} % no-op default; designs override
 

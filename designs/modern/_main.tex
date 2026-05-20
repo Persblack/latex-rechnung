@@ -350,6 +350,7 @@
   {\small\customerStreet}\\[0.3mm]
   {\small\customerZIP\ \customerCity}
 \end{minipage}%
+\ifHasProjectTitle
 \hfill
 \begin{minipage}[t]{0.42\linewidth}
   \metalabel{\ifEnglish Project\else Projekt\fi}\\[1.5pt]
@@ -363,6 +364,7 @@
     \ifEnglish INVOICE REF:\else REF-NR.:\fi~\invoiceReference%
   }}
 \end{minipage}%
+\fi
 \hfill
 \begin{minipage}[t]{7mm}
   \vspace{6mm}
@@ -463,6 +465,22 @@
 
   \vspace{1.5mm}
   {\small\invoiceClosing}
+
+  \ifShowWarrantyExcluded
+    \par\vspace{2mm}
+    {\fontsize{7.5pt}{9pt}\selectfont\textcolor{midgray}{%
+      \ifEnglish The sale is made under exclusion of any warranty.\else Der Verkauf erfolgt unter Ausschluss jeglicher Gewährleistung.\fi}}
+  \fi
+  \ifShowRetentionOfTitle
+    \par\vspace{1mm}
+    {\fontsize{7.5pt}{9pt}\selectfont\textcolor{midgray}{%
+      \ifEnglish Goods remain property of the seller until full payment.\else Die Ware bleibt bis zur vollständigen Bezahlung Eigentum des Verkäufers.\fi}}
+  \fi
+  \ifShowLateFeeWarning
+    \par\vspace{1mm}
+    {\fontsize{7.5pt}{9pt}\selectfont\textcolor{midgray}{%
+      \ifEnglish Late payment incurs statutory interest (5 percentage points above the base rate; 9 percentage points for B2B) pursuant to \S\S\ 288, 286 BGB.\else Bei Zahlungsverzug werden gesetzliche Verzugszinsen (5 Prozentpunkte über Basiszinssatz, im B2B 9 Prozentpunkte) gemäß \S\S\ 288, 286 BGB erhoben.\fi}}
+  \fi
 \end{minipage}
 
 \vspace{3mm}
@@ -484,15 +502,26 @@
 
   \vspace{1.5mm}
   {\fontsize{8pt}{9pt}\selectfont
+  \ifPaymentTransfer
     \textbf{\ifEnglish Bank Transfer\else Banküberweisung\fi}\\[0.3mm]
     \accountRCPT\\[0.3mm]
     IBAN:~\accountIBAN\\[0.3mm]
     BIC:~\accountBIC\\[0.3mm]
     Bank:~\accountBankName%
+  \fi
+  \ifPaymentCashDue
+    \textbf{\ifEnglish Cash on Delivery\else Barzahlung\fi}\\[0.3mm]
+    \ifEnglish Please pay the amount in cash upon delivery.\else Bitte zahlen Sie den Betrag in bar bei Übergabe.\fi
+  \fi
+  \ifPaymentCashPaid
+    \textbf{\ifEnglish Paid in Cash\else Bar bezahlt\fi}\\[0.3mm]
+    \ifEnglish Amount received in cash with thanks on \cashPaidDate.\else Betrag dankend in bar erhalten am \cashPaidDate.\fi
+  \fi
   }
 \end{minipage}%
 \hfill
 \ifShowQR
+\ifPaymentCashPaid\else
 \begin{minipage}[t]{0.24\linewidth}
   \metalabel{\ifEnglish Scan To Pay\else Bezahlen\fi}\\[1.5pt]
   \textcolor{brand}{\rule{1.1cm}{0.7pt}}
@@ -504,6 +533,7 @@
   {\fontsize{6pt}{7pt}\selectfont\textcolor{midgray}{\invoiceReference}}
 \end{minipage}%
 \hfill
+\fi
 \fi
 \begin{minipage}[t]{0.32\linewidth}
   \metalabel{\ifEnglish System Information\else Informationen\fi}\\[1.5pt]
