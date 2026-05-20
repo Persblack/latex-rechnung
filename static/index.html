@@ -297,13 +297,21 @@
   <!-- Absender -->
   <div class="card">
     <h2>Absender</h2>
-    <div>
-      <label for="profile">Absender-Profil</label>
-      <select id="profile">
-        <option value="">— Profil wählen —</option>
-      </select>
-      <div class="profile-summary" id="profileSummary"></div>
+    <div class="grid grid-2">
+      <div>
+        <label for="profile">Absender-Profil</label>
+        <select id="profile">
+          <option value="">— Profil wählen —</option>
+        </select>
+      </div>
+      <div>
+        <label for="design">Design</label>
+        <select id="design">
+          <option value="">— Design wählen —</option>
+        </select>
+      </div>
     </div>
+    <div class="profile-summary" id="profileSummary"></div>
     <div class="toggle-row">
       <label class="toggle">
         <input type="checkbox" id="useVat" checked>
@@ -439,6 +447,26 @@
         opt.textContent = p.name;
         sel.appendChild(opt);
       });
+    });
+
+  // Load designs on startup; default to "classic" when present.
+  fetch('/api/designs')
+    .then(r => r.json())
+    .then(list => {
+      list.sort((a, b) => a.name.localeCompare(b.name));
+      const sel = $('design');
+      list.forEach(d => {
+        const opt = document.createElement('option');
+        opt.value = d.key;
+        opt.textContent = d.name;
+        opt.title = d.description || '';
+        sel.appendChild(opt);
+      });
+      if (list.some(d => d.key === 'classic')) {
+        sel.value = 'classic';
+      } else if (list.length > 0) {
+        sel.value = list[0].key;
+      }
     });
 
   $('profile').addEventListener('change', async () => {
@@ -581,6 +609,7 @@
 
     const payload = {
       profileKey,
+      design:            $('design').value,
       invoiceDate:       $('invoiceDate').value,
       payDate:           $('payDate').value,
       invoiceReference:  $('invoiceReference').value,
