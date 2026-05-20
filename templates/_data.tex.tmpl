@@ -41,3 +41,21 @@
 \newcommand{\accountIBAN}{{"{"}}{{.AccountIBAN}}{{"}"}}
 \newcommand{\accountBIC}{{"{"}}{{.AccountBIC}}{{"}"}}
 % ################## Personal DATA ##################
+
+
+
+% =============== VAT BREAKDOWN ===============
+\providecommand{\VatBreakdownRow}[4]{} % no-op default; designs override
+
+\newcommand{\NetTotal}{ {{.NetTotalStr}} }
+\newcommand{\VatTotal}{ {{.VatTotalStr}} }
+\newcommand{\GrossTotal}{ {{.GrossTotalStr}} }
+\newif\ifHasAnyVat
+{{if .HasAnyVat}}\HasAnyVattrue{{else}}\HasAnyVatfalse{{end}}
+
+\newcommand{\VatBreakdownRows}{%
+{{range .VatBreakdown -}}
+\VatBreakdownRow{ {{.Rate}} }{ {{.NetStr}} }{ {{.VatStr}} }{ {{.GrossStr}} }%
+{{end -}}
+}
+% =============== VAT BREAKDOWN ===============

@@ -8,10 +8,13 @@ import (
 	"io"
 	"io/fs"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
+	"strconv"
 	"strings"
 	"text/template"
 )
@@ -50,6 +53,17 @@ type LineItem struct {
 	UnitPrice   string `json:"unitPrice"`
 	Quantity    string `json:"quantity"`
 	VatRate     string `json:"vatRate"` // "", "7", or "19"
+}
+
+// VatBreakdown holds the aggregated net/vat/gross amounts for one VAT rate.
+type VatBreakdown struct {
+	Rate       int    // e.g. 0, 7, 19
+	NetCents   int64  // net sum for this rate in cents
+	VatCents   int64  // VAT amount for this rate in cents
+	GrossCents int64  // gross = net + vat in cents
+	NetStr     string // "1234.56"
+	VatStr     string // "234.56"
+	GrossStr   string // "1469.12"
 }
 
 type InvoiceRequest struct {
@@ -106,6 +120,14 @@ type TemplateData struct {
 	CustomerCity      string
 	ProjectTitle      string
 	Items             []LineItem
+
+	// VAT breakdown — computed per request, see computeVatBreakdown.
+	VatBreakdown        []VatBreakdown
+	NetTotalStr         string // sum of all net amounts  e.g. "350.00"
+	VatTotalStr         string // sum of all VAT amounts  e.g.  "48.50"
+	GrossTotalStr       string // gross total             e.g. "398.50"
+	HasMultipleVatRates bool   // true when >1 distinct non-zero rate appears
+	HasAnyVat           bool   // true when useVat=true and at least one item has vatRate>0
 }
 
 // Design describes one visual layout variant. The actual .tex/.sty/.def
@@ -354,6 +376,126 @@ func handleDoc(w http.ResponseWriter, r *http.Request, docType string) {
 	io.Copy(w, f)
 }
 
+// parseCents converts a decimal string amount to integer cents.
+// "150.00" → 15000, "8" → 800, "0.5" → 50.
+// On parse failure it returns 0 and logs a warning.
+func parseCents(s string) int64 {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return 0
+	}
+	parts := strings.SplitN(s, ".", 2)
+	intPart, err := strconv.ParseInt(parts[0], 10, 64)
+	if err != nil {
+		log.Printf("parseCents: cannot parse integer part of %q: %v", s, err)
+		return 0
+	}
+	cents := intPart * 100
+	if len(parts) == 2 {
+		frac := parts[1]
+		// Normalise to exactly 2 decimal digits.
+		switch len(frac) {
+		case 0:
+			// nothing
+		case 1:
+			frac += "0"
+		default:
+			frac = frac[:2]
+		}
+		fracVal, err := strconv.ParseInt(frac, 10, 64)
+		if err != nil {
+			log.Printf("parseCents: cannot parse fractional part of %q: %v", s, err)
+			return cents
+		}
+		if intPart < 0 {
+			cents -= fracVal
+		} else {
+			cents += fracVal
+		}
+	}
+	return cents
+}
+
+// formatCents converts integer cents back to a decimal string with 2 places.
+// 15000 → "150.00", 234 → "2.34".
+func formatCents(c int64) string {
+	neg := c < 0
+	if neg {
+		c = -c
+	}
+	s := fmt.Sprintf("%d.%02d", c/100, c%100)
+	if neg {
+		return "-" + s
+	}
+	return s
+}
+
+// roundHalfUp rounds x to the nearest integer, with ties going away from zero
+// (kaufmännische Rundung / standard German invoice rounding).
+func roundHalfUp(x float64) int64 {
+	return int64(math.Floor(x + 0.5))
+}
+
+// computeVatBreakdown aggregates per-item net/vat/gross amounts grouped by VAT
+// rate and returns them sorted by rate ascending.
+func computeVatBreakdown(items []LineItem, useVat bool) []VatBreakdown {
+	type accumulator struct {
+		netCents int64
+		vatCents int64
+	}
+	rateMap := map[int]*accumulator{}
+
+	for _, item := range items {
+		unitCents := parseCents(item.UnitPrice)
+		qtyCents := parseCents(item.Quantity)
+		// Fixed-point multiply: unitCents (€ cents) × qtyCents (hundredths of a
+		// unit) ÷ 100 = line net in € cents.
+		lineNetCents := unitCents * qtyCents / 100
+
+		rate := 0
+		if useVat && item.VatRate != "" {
+			r, err := strconv.Atoi(strings.TrimSpace(item.VatRate))
+			if err != nil {
+				log.Printf("computeVatBreakdown: invalid vatRate %q: %v", item.VatRate, err)
+			} else {
+				rate = r
+			}
+		}
+
+		// Kaufmännisch gerundete MwSt pro Zeile.
+		lineVatCents := roundHalfUp(float64(lineNetCents) * float64(rate) / 100.0)
+
+		if _, ok := rateMap[rate]; !ok {
+			rateMap[rate] = &accumulator{}
+		}
+		rateMap[rate].netCents += lineNetCents
+		rateMap[rate].vatCents += lineVatCents
+	}
+
+	// Collect and sort by rate ascending.
+	rates := make([]int, 0, len(rateMap))
+	for r := range rateMap {
+		rates = append(rates, r)
+	}
+	sort.Ints(rates)
+
+	breakdown := make([]VatBreakdown, 0, len(rates))
+	for _, r := range rates {
+		acc := rateMap[r]
+		gross := acc.netCents + acc.vatCents
+		breakdown = append(breakdown, VatBreakdown{
+			Rate:       r,
+			NetCents:   acc.netCents,
+			VatCents:   acc.vatCents,
+			GrossCents: gross,
+			NetStr:     formatCents(acc.netCents),
+			VatStr:     formatCents(acc.vatCents),
+			GrossStr:   formatCents(gross),
+		})
+	}
+	return breakdown
+}
+
 func buildDocument(req InvoiceRequest, p *Profile, cfg docConfig, designKey, docType string) (pdfPath string, cleanup func(), err error) {
 	noop := func() {}
 
@@ -414,8 +556,27 @@ func buildDocument(req InvoiceRequest, p *Profile, cfg docConfig, designKey, doc
 			Description: itemDescription(item, req.UseVat),
 			UnitPrice:   item.UnitPrice,
 			Quantity:    item.Quantity,
+			VatRate:     item.VatRate,
 		}
 	}
+
+	// Compute VAT breakdown using original (unescaped) items.
+	vatBreakdown := computeVatBreakdown(req.Items, req.UseVat)
+	log.Printf("VAT breakdown for %s: %+v", req.InvoiceReference, vatBreakdown)
+
+	// Aggregate totals.
+	var totalNetCents, totalVatCents int64
+	nonZeroRates := map[int]struct{}{}
+	for _, b := range vatBreakdown {
+		totalNetCents += b.NetCents
+		totalVatCents += b.VatCents
+		if b.Rate > 0 {
+			nonZeroRates[b.Rate] = struct{}{}
+		}
+	}
+	totalGrossCents := totalNetCents + totalVatCents
+	hasAnyVat := req.UseVat && len(nonZeroRates) > 0
+	hasMultipleVatRates := len(nonZeroRates) > 1
 
 	data := TemplateData{
 		TaxID:             latexEscape(p.TaxID),
@@ -448,6 +609,13 @@ func buildDocument(req InvoiceRequest, p *Profile, cfg docConfig, designKey, doc
 		CustomerCity:      latexEscape(req.CustomerCity),
 		ProjectTitle:      latexEscape(req.ProjectTitle),
 		Items:             escapedItems,
+
+		VatBreakdown:        vatBreakdown,
+		NetTotalStr:         formatCents(totalNetCents),
+		VatTotalStr:         formatCents(totalVatCents),
+		GrossTotalStr:       formatCents(totalGrossCents),
+		HasMultipleVatRates: hasMultipleVatRates,
+		HasAnyVat:           hasAnyVat,
 	}
 
 	if err := renderTemplate(tmpDir, "_data.tex", "templates/_data.tex.tmpl", data); err != nil {
