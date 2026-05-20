@@ -14,6 +14,7 @@
 \usepackage{color}
 \usepackage[hidelinks]{hyperref}
 \usepackage{etoolbox}
+\usepackage{booktabs}
 
 \usepackage[german]{invoice}
 
@@ -81,6 +82,27 @@
 		    \begin{invoice}{Euro}{\vatRate}
 			    \input{_invoice}
 		    \end{invoice}
+
+		% VAT breakdown table: only rendered for USt-pflichtige Rechnungen
+		\ifHasAnyVat
+		\bigskip
+		\noindent\textbf{Aufschlüsselung nach Steuersätzen:}\\[0.5ex]
+		\renewcommand{\VatBreakdownRow}[4]{%
+		  #1\,\% & #2~€ & #3~€ & #4~€ \\
+		}%
+		{\small
+		\begin{tabular}{rrrr}
+		\toprule
+		Steuersatz & Netto & MwSt & Brutto \\
+		\midrule
+		\VatBreakdownRows
+		\midrule
+		\textbf{Summe} & \textbf{\NetTotal~€} & \textbf{\VatTotal~€} & \textbf{\GrossTotal~€} \\
+		\bottomrule
+		\end{tabular}
+		}
+		\fi
+
 		\ifdefempty{\vatID}{%
 		\ps Im ausgewiesenen Betrag ist gemäß § 19 UStG keine Umsatzsteuer enthalten.%
 		}{}
