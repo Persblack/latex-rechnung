@@ -26,14 +26,12 @@
 \setkomavar{frommobilephone}{\senderMobilephone}
 \setkomavar{fromemail}{\href{mailto:\senderEmail}{\nolinkurl{\senderEmail}}}
 \setkomavar{subject}{Lieferschein}
-\setkomavar{location}{
-  \hfill\\[\baselineskip]\hfill\\[\baselineskip]
-  \flushright \small {\vspace{1cm}Lieferschein-Nr.:
-  \invoiceReference}
-}
+% Lieferschein-Nr. moved into firsthead table (like in _main.tex)
+% to avoid the overlap bug with the location sidebar.
+\setkomavar{location}{}
 
 \setkomavar{firsthead}{\hfill
-   \parbox[t][\headheight][t]{8cm}{%
+   \parbox[t]{8cm}{%
    \footnotesize
    \raggedright
    \flushright
@@ -49,6 +47,9 @@
 		 \\
 		 Steuernummer & \taxID \\
 		 \ifdefempty{\vatID}{}{USt-IdNr. & \vatID \\}
+		 \\
+		 Lieferschein-Nr. & \invoiceReference \\
+		 \multicolumn{2}{r}{\scriptsize Leistungsdatum entspricht dem Rechnungsdatum.}
 	\end{tabular}
    }%
 }

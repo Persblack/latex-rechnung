@@ -30,14 +30,16 @@
 \setkomavar{frommobilephone}{\senderMobilephone}
 \setkomavar{fromemail}{\href{mailto:\senderEmail}{\nolinkurl{\senderEmail}}}
 \setkomavar{subject}{Rechnung}
-\setkomavar{location}{%
-  \raggedleft\small
-  \vspace*{3\baselineskip}%
-  Rechnungsnummer: \invoiceReference
-}
+% Rechnungsnummer is placed inside firsthead to avoid the overlap bug
+% that occurred when \setkomavar{location} collided with the firsthead
+% Anschrift table (the parbox[t][\headheight] height constraint clipped
+% the table and the location sidebar content overlapped visually).
+% Moving Rechnungsnummer into the table and removing the [t][\headheight]
+% height constraint lets the parbox grow to fit all rows cleanly.
+\setkomavar{location}{}
 
 \setkomavar{firsthead}{\hfill
-   \parbox[t][\headheight][t]{8cm}{%
+   \parbox[t]{8cm}{%
    \footnotesize
    \raggedright
    \flushright
@@ -57,8 +59,11 @@
 		 \\
 		 Institut & \accountBankName \\
 		 IBAN & \accountIBAN \\
-		 BIC & \accountBIC
-	\end{tabular}	 			    
+		 BIC & \accountBIC \\
+		 \\
+		 Rechnungsnr. & \invoiceReference \\
+		 \multicolumn{2}{r}{\scriptsize Leistungsdatum entspricht dem Rechnungsdatum.}
+	\end{tabular}
    }%
 }
 
