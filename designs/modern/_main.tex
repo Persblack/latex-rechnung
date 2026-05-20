@@ -217,6 +217,11 @@
 \FPset{\invoiceSubtotal}{0}
 \newcommand{\allFeeRows}{}
 
+% \Fee accumulates rows into \allFeeRows.
+% Bug fix: each row is fully expanded into \curRow via \edef (embedding literal
+% argument text), then the EXPANDED content of \curRow is appended to \allFeeRows
+% via \expandafter. This prevents later \Fee calls from overwriting earlier rows,
+% which happened when row tokens referenced shared macro variables like \curDesc.
 \newcommand{\Fee}[3]{%
   \stepcounter{itemnum}%
   \FPmul{\myLineTot}{#2}{#3}%
@@ -224,19 +229,15 @@
   \FPadd{\myNewSub}{\invoiceSubtotal}{\myLineTotR}%
   \FPround{\myNewSubR}{\myNewSub}{2}%
   \xdef\invoiceSubtotal{\myNewSubR}%
-  \edef\curNum{\fmtnum{\value{itemnum}}}%
-  \edef\curDesc{#1}%
-  \edef\curQty{#3}%
-  \edef\curRate{#2}%
-  \edef\curTot{\myLineTotR}%
-  \gappto\allFeeRows{%
-    \textcolor{brand}{\textbf{\curNum}} &
-    \textbf{\curDesc} &
-    \curQty &
-    \curRate &
-    \curTot \\[1pt]%
-    \arrayrulecolor{lightgray}\hline
+  \edef\curRow{%
+    \noexpand\textcolor{brand}{\noexpand\textbf{\fmtnum{\value{itemnum}}}} &
+    \noexpand\textbf{#1} &
+    #3 &
+    #2 &
+    \myLineTotR \noexpand\\[1pt]%
+    \noexpand\arrayrulecolor{lightgray}\noexpand\hline
   }%
+  \expandafter\gappto\expandafter\allFeeRows\expandafter{\curRow}%
 }
 
 % \ProjectTitle (von _invoice.tex.tmpl)
