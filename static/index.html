@@ -319,6 +319,13 @@
       </label>
       <span>Mit Mehrwertsteuer (MwSt.)</span>
     </div>
+    <div class="toggle-row">
+      <label class="toggle">
+        <input type="checkbox" id="showQR" checked>
+        <span class="toggle-slider"></span>
+      </label>
+      <span>QR-Code anzeigen <span style="color:var(--gray-400)">(nur im modern-Design)</span></span>
+    </div>
   </div>
 
   <!-- Empfänger -->
@@ -624,6 +631,7 @@
       customerCity:      $('customerCity').value,
       projectTitle:      $('projectTitle').value,
       useVat,
+      hideQR: !$('showQR').checked,
       items,
     };
 

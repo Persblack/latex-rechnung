@@ -84,6 +84,7 @@ type InvoiceRequest struct {
 	CustomerCity      string     `json:"customerCity"`
 	ProjectTitle      string     `json:"projectTitle"`
 	UseVat            bool       `json:"useVat"`
+	HideQR            bool       `json:"hideQR"` // when true, designs suppress the QR-code block. Default false = QR rendered.
 	Items             []LineItem `json:"items"`
 }
 
@@ -133,6 +134,9 @@ type TemplateData struct {
 	// Branding — designs use these to render a logo image or a wordmark fallback.
 	ShortName string // profile.shortName, escaped for LaTeX; intended as wordmark when HasLogo is false
 	HasLogo   bool   // true when logo file was found and copied to tmpDir as logo.png
+
+	// QR-Code visibility (per-request UI toggle).
+	ShowQR bool // true when the design should render the QR-code block. Mirrors !req.HideQR.
 }
 
 // Design describes one visual layout variant. The actual .tex/.sty/.def
@@ -634,6 +638,8 @@ func buildDocument(req InvoiceRequest, p *Profile, cfg docConfig, designKey, doc
 
 		ShortName: latexEscape(p.ShortName),
 		HasLogo:   hasLogo,
+
+		ShowQR: !req.HideQR,
 	}
 
 	if err := renderTemplate(tmpDir, "_data.tex", "templates/_data.tex.tmpl", data); err != nil {
