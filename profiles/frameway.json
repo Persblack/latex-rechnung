@@ -14,5 +14,6 @@
   "accountIBAN": "DE50 5001 0517 5450 3793 40",
   "accountBIC": "INGDDEFFXXX",
   "accountBankName": "ING-DiBa",
-  "logo": "frameway-logo.png"
+  "logo": "frameway-logo.png",
+  "shortName": "frameway"
 }

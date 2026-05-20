@@ -273,11 +273,15 @@
 % =============================================================
 \noindent
 \begin{minipage}[t]{0.50\linewidth}
-  % Big-Type Wortmarke — wrapped in \parbox so that \\ in \senderCompany
-  % (multi-line company names from profiles with senderCompanyLines) does not
-  % trigger the "Not allowed in LR mode" error in pdflatex.
-  \parbox[t]{0.96\linewidth}{\fontsize{40pt}{44pt}\selectfont\textbf{\senderCompany}}%
-  \hspace{2mm}{\small\textcolor{midgray}{\textregistered}}
+  % Branding-Block:
+  %   - HasLogo  -> Logo-Bild (max 22mm hoch, schmal proportional)
+  %   - sonst    -> Big-Type shortName-Wortmarke (einzeilig, kein LR-mode-Risiko)
+  \ifHasLogo
+    \includegraphics[height=22mm,keepaspectratio]{logo.png}%
+  \else
+    {\fontsize{42pt}{46pt}\selectfont\textbf{\shortName}}%
+    \hspace{2mm}{\small\textcolor{midgray}{\textregistered}}%
+  \fi
 
   \vspace{2mm}
   {\small\textcolor{brand}{%
@@ -285,6 +289,9 @@
   }}
 
   \vspace{3mm}
+  % Vollständiger Firmenname (mehrzeilig erlaubt) klein vor der Adresse,
+  % damit auch lange Holding-Konstrukte sauber aufgeführt sind.
+  {\fontsize{8pt}{10pt}\selectfont\textcolor{darktext}{\senderCompany}}\\[1mm]
   {\small\senderStreet}\\[0.3mm]
   {\small\senderZIP\ \senderCity}\\[0.3mm]
   {\small\senderEmail}

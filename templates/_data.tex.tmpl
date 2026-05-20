@@ -44,6 +44,13 @@
 
 
 
+% =============== BRANDING ===============
+\newcommand{\shortName}{{"{"}}{{.ShortName}}{{"}"}}
+\newif\ifHasLogo
+{{if .HasLogo}}\HasLogotrue{{else}}\HasLogofalse{{end}}
+% =============== BRANDING ===============
+
+
 % =============== VAT BREAKDOWN ===============
 \providecommand{\VatBreakdownRow}[4]{} % no-op default; designs override
 

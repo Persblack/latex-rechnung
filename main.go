@@ -44,6 +44,7 @@ type Profile struct {
 	AccountBIC         string   `json:"accountBIC"`
 	AccountBankName    string   `json:"accountBankName"`
 	Logo               string   `json:"logo"`
+	ShortName          string   `json:"shortName"` // fallback wordmark when logo is missing (e.g. "rico", "frameway")
 	VatID              string   `json:"vatID"`
 	VatRate            int      `json:"vatRate"` // optional; defaults to 19 when VatID is set
 }
@@ -128,6 +129,10 @@ type TemplateData struct {
 	GrossTotalStr       string // gross total             e.g. "398.50"
 	HasMultipleVatRates bool   // true when >1 distinct non-zero rate appears
 	HasAnyVat           bool   // true when useVat=true and at least one item has vatRate>0
+
+	// Branding — designs use these to render a logo image or a wordmark fallback.
+	ShortName string // profile.shortName, escaped for LaTeX; intended as wordmark when HasLogo is false
+	HasLogo   bool   // true when logo file was found and copied to tmpDir as logo.png
 }
 
 // Design describes one visual layout variant. The actual .tex/.sty/.def
@@ -534,13 +539,23 @@ func buildDocument(req InvoiceRequest, p *Profile, cfg docConfig, designKey, doc
 		return "", cleanup, fmt.Errorf("design %q is missing required %s", designKey, cfg.mainTexName)
 	}
 
-	// Copy the profile's logo into the temp dir as logo.png.
-	logoData, err := os.ReadFile(filepath.Join("logos", p.Logo))
-	if err != nil {
-		return "", cleanup, fmt.Errorf("read logo %s: %w", p.Logo, err)
-	}
-	if err := os.WriteFile(filepath.Join(tmpDir, "logo.png"), logoData, 0644); err != nil {
-		return "", cleanup, fmt.Errorf("write logo: %w", err)
+	// Copy the profile's logo into the temp dir as logo.png. Missing logo
+	// is non-fatal: designs can branch on \ifHasLogo and render the
+	// profile.shortName wordmark as fallback. Designs that hard-require
+	// the file (e.g. classic uses \includegraphics{logo.png} unconditionally)
+	// will fail at LaTeX-build with a missing-file error — preferred over a
+	// 500 at the HTTP layer because the LaTeX log shows which design needs it.
+	hasLogo := false
+	if p.Logo != "" {
+		logoData, lerr := os.ReadFile(filepath.Join("logos", p.Logo))
+		if lerr == nil {
+			if werr := os.WriteFile(filepath.Join(tmpDir, "logo.png"), logoData, 0644); werr != nil {
+				return "", cleanup, fmt.Errorf("write logo: %w", werr)
+			}
+			hasLogo = true
+		} else {
+			log.Printf("logo %q for profile %q not found; falling back to shortName wordmark", p.Logo, req.ProfileKey)
+		}
 	}
 
 	// Build SenderCompany from lines joined with LaTeX newline.
@@ -616,6 +631,9 @@ func buildDocument(req InvoiceRequest, p *Profile, cfg docConfig, designKey, doc
 		GrossTotalStr:       formatCents(totalGrossCents),
 		HasMultipleVatRates: hasMultipleVatRates,
 		HasAnyVat:           hasAnyVat,
+
+		ShortName: latexEscape(p.ShortName),
+		HasLogo:   hasLogo,
 	}
 
 	if err := renderTemplate(tmpDir, "_data.tex", "templates/_data.tex.tmpl", data); err != nil {
