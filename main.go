@@ -84,7 +84,8 @@ type InvoiceRequest struct {
 	CustomerCity      string     `json:"customerCity"`
 	ProjectTitle      string     `json:"projectTitle"`
 	UseVat            bool       `json:"useVat"`
-	HideQR            bool       `json:"hideQR"` // when true, designs suppress the QR-code block. Default false = QR rendered.
+	HideQR            bool       `json:"hideQR"`   // when true, designs suppress the QR-code block. Default false = QR rendered.
+	Language          string     `json:"language"` // "de" (default) or "en". Empty => "de".
 	Items             []LineItem `json:"items"`
 }
 
@@ -137,6 +138,9 @@ type TemplateData struct {
 
 	// QR-Code visibility (per-request UI toggle).
 	ShowQR bool // true when the design should render the QR-code block. Mirrors !req.HideQR.
+
+	// Output language. Default: German. English when req.Language == "en".
+	IsEnglish bool
 }
 
 // Design describes one visual layout variant. The actual .tex/.sty/.def
@@ -639,7 +643,8 @@ func buildDocument(req InvoiceRequest, p *Profile, cfg docConfig, designKey, doc
 		ShortName: latexEscape(p.ShortName),
 		HasLogo:   hasLogo,
 
-		ShowQR: !req.HideQR,
+		ShowQR:    !req.HideQR,
+		IsEnglish: strings.EqualFold(req.Language, "en"),
 	}
 
 	if err := renderTemplate(tmpDir, "_data.tex", "templates/_data.tex.tmpl", data); err != nil {
