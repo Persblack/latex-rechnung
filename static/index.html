@@ -68,7 +68,7 @@
       margin-bottom: 4px;
     }
 
-    input, select, textarea {
+    input:not([type="checkbox"]):not([type="radio"]), select, textarea {
       width: 100%;
       padding: 8px 10px;
       border: 1px solid var(--gray-200);
@@ -81,12 +81,49 @@
       transition: border-color .15s;
     }
 
-    input:focus, select:focus, textarea:focus {
+    input:focus:not([type="checkbox"]):not([type="radio"]),
+    select:focus, textarea:focus {
       border-color: var(--blue);
       box-shadow: 0 0 0 3px var(--blue-light);
     }
 
     textarea { resize: vertical; min-height: 72px; }
+
+    /* Native radio/checkbox: small inline form controls; reset margins so
+       flex labels can position the control + text without weird spacing. */
+    input[type="radio"], input[type="checkbox"] {
+      width: 16px;
+      height: 16px;
+      margin: 0;
+      accent-color: var(--blue);
+      flex-shrink: 0;
+      cursor: pointer;
+    }
+
+    /* Labels that wrap a radio/checkbox use flex; the label-as-form-label
+       rule (display:block) doesn't apply because the inline style overrides. */
+    .choice-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .choice-list label {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 14px;
+      font-weight: 400;
+      color: var(--gray-800);
+      margin: 0;
+      cursor: pointer;
+      text-transform: none;
+      letter-spacing: normal;
+    }
+    fieldset.choice-list {
+      border: none;
+      padding: 0;
+      margin: 0;
+    }
 
     .profile-summary {
       margin-top: 10px;
@@ -411,20 +448,12 @@
   <!-- Zahlung -->
   <div class="card">
     <h2>Zahlung</h2>
-    <fieldset style="border:none;padding:0;margin:0">
-      <div style="display:flex;flex-direction:column;gap:8px">
-        <label style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:normal;color:var(--gray-800)">
-          <input type="radio" name="paymentMode" value="transfer" checked> Überweisung
-        </label>
-        <label style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:normal;color:var(--gray-800)">
-          <input type="radio" name="paymentMode" value="cash_due"> Barzahlung bei Übergabe
-        </label>
-        <label style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:normal;color:var(--gray-800)">
-          <input type="radio" name="paymentMode" value="cash_paid"> Bereits bar bezahlt (Quittungs-Modus)
-        </label>
-      </div>
+    <fieldset class="choice-list">
+      <label><input type="radio" name="paymentMode" value="transfer" checked> Überweisung</label>
+      <label><input type="radio" name="paymentMode" value="cash_due"> Barzahlung bei Übergabe</label>
+      <label><input type="radio" name="paymentMode" value="cash_paid"> Bereits bar bezahlt (Quittungs-Modus)</label>
     </fieldset>
-    <div id="cashPaidDateWrap" style="display:none;margin-top:12px">
+    <div id="cashPaidDateWrap" style="display:none;margin-top:14px">
       <label for="cashPaidDate">Zahlungsdatum</label>
       <input type="date" id="cashPaidDate">
     </div>
@@ -433,16 +462,10 @@
   <!-- Hinweise -->
   <div class="card">
     <h2>Hinweise <span style="font-weight:400;text-transform:none;letter-spacing:normal;font-size:12px;color:var(--gray-400)">(optional)</span></h2>
-    <div style="display:flex;flex-direction:column;gap:8px">
-      <label style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:normal;color:var(--gray-800)">
-        <input type="checkbox" id="clauseWarranty"> Gewährleistungsausschluss
-      </label>
-      <label style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:normal;color:var(--gray-800)">
-        <input type="checkbox" id="clauseRetention"> Eigentumsvorbehalt
-      </label>
-      <label style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:normal;color:var(--gray-800)">
-        <input type="checkbox" id="clauseLateFee"> Verzugszinsen-Hinweis
-      </label>
+    <div class="choice-list">
+      <label><input type="checkbox" id="clauseWarranty"> Gewährleistungsausschluss</label>
+      <label><input type="checkbox" id="clauseRetention"> Eigentumsvorbehalt</label>
+      <label><input type="checkbox" id="clauseLateFee"> Verzugszinsen-Hinweis</label>
     </div>
   </div>
 
