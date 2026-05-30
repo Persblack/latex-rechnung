@@ -458,13 +458,11 @@
   \textcolor{brand}{\rule{1.1cm}{0.7pt}}
 
   \vspace{2mm}
-  {\small\invoiceSalutation}
-
-  \vspace{1.5mm}
-  {\small\invoiceText}
-
-  \vspace{1.5mm}
-  {\small\invoiceClosing}
+  % Each line prints only when non-empty so an empty Rechnungstext
+  % collapses instead of leaving a dead gap between Anrede and Grussformel.
+  \ifdefempty{\invoiceSalutation}{}{{\small\invoiceSalutation}\par\vspace{1.5mm}}
+  \ifdefempty{\invoiceText}{}{{\small\invoiceText}\par\vspace{1.5mm}}
+  \ifdefempty{\invoiceClosing}{}{{\small\invoiceClosing}\par}
 
   \ifShowWarrantyExcluded
     \par\vspace{2mm}
