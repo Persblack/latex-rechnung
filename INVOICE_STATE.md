@@ -7,7 +7,7 @@ Stand: 2026-05-20 (nach Orchestrator-Session)
 | Key | Status | Beschreibung | Pfad |
 |---|---|---|---|
 | `classic` | **produktiv** | KOMA `scrlttr2` + Oliver Corffs `invoice`-Paket. Pflichtangaben-Block in Anschriftentabelle (Steuernr., USt-ID, IBAN, BIC, Rechnungsnr., Leistungsdatum). MwSt-Aufschlüsselung als Folge-Tabelle wenn `\ifHasAnyVat`. | `designs/classic/` |
-| `modern` | **produktiv (mit Polish-Notes)** | Tech-minimal Layout nach `inspo/invoice-light.jpeg` — Monospace, blaue Akzente, Crop-Marks, vertikale Labels (`CLIENT`/`SYSTEM ID`/`PAYMENT NODE`), QR-Platzhalter. Dynamischer Total-Block mit Per-Rate-Aufschlüsselung. | `designs/modern/` |
+| `modern` | **produktiv (mit Polish-Notes)** | Tech-minimal Layout nach `inspo/invoice-light.jpeg` — Monospace, blaue Akzente, Crop-Marks, vertikale Labels (`CLIENT`/`SYSTEM ID`/`PAYMENT NODE`), **echter EPC/Girocode-QR** (server-seitig in Go gerendert, `\ifHasQRFile`; TikZ-Platzhalter nur noch Fallback). Dynamischer Total-Block mit Per-Rate-Aufschlüsselung. | `designs/modern/` |
 
 **Default-Design im Dashboard:** `classic`.
 
@@ -72,3 +72,4 @@ Audit-Dokument: [`docs/compliance/audit-2026-05-20.md`](docs/compliance/audit-20
 8. ✅ Compliance-UI-Fixes (LR-mode, §19-Wortlaut, MWSt-0%-Suppress, Leistungsdatum, Layout) — direct merge (`invoice-designer/compliance-ui-fixes`)
 9. ✅ VAT-Breakdown-UI-Integration in beide Designs — direct merge (`invoice-designer/vat-breakdown-ui`)
 10. ✅ INVOICE_STATE.md aktualisiert (diese Aktualisierung).
+11. ✅ Echter EPC/Girocode-QR im modern-Design (Go `buildEPCPayload` + `skip2/go-qrcode`, `\ifHasQRFile`-Toggle; per zbarimg verifiziert) — Branch `invoice-designer/epc-qr` (Commit `b3d2385`)
