@@ -73,3 +73,5 @@ Audit-Dokument: [`docs/compliance/audit-2026-05-20.md`](docs/compliance/audit-20
 9. ✅ VAT-Breakdown-UI-Integration in beide Designs — direct merge (`invoice-designer/vat-breakdown-ui`)
 10. ✅ INVOICE_STATE.md aktualisiert (diese Aktualisierung).
 11. ✅ Echter EPC/Girocode-QR im modern-Design (Go `buildEPCPayload` + `skip2/go-qrcode`, `\ifHasQRFile`-Toggle; per zbarimg verifiziert) — Branch `invoice-designer/epc-qr` (Commit `b3d2385`)
+12. ✅ Editierbare Rechnungs-Persistenz: `invoices/<nr>.json` speichert die komplette `InvoiceRequest`; Endpunkte `GET/POST /api/invoices`, `GET/PUT/DELETE /api/invoices/{key}` (POST = neu, 409 bei Kollision; PUT = Überschreiben). Dashboard-Dropdown zum Laden/Speichern/Löschen. Spiegelt das `recipients/`-Muster. — Commit `2f5c1b3`
+13. ✅ Zwei Remexian-Rechnungen angelegt (`invoices/2026-001.json` Website remexian.com = 1380 €, `invoices/2026-002.json` Dashboard/VPS = 2760 €; modern, rico-solo §19; Beträge = editierbare Platzhalter). Modern-Footer-Spacing gestrafft (1-Seiten-Build). — Commit `f456fff`
