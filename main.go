@@ -16,6 +16,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"text/template"
 )
 
@@ -47,6 +48,25 @@ type Profile struct {
 	ShortName          string   `json:"shortName"` // fallback wordmark when logo is missing (e.g. "rico", "frameway")
 	VatID              string   `json:"vatID"`
 	VatRate            int      `json:"vatRate"` // optional; defaults to 19 when VatID is set
+}
+
+// Recipient holds saved customer (Empfänger) Stammdaten loaded from a
+// recipients/*.json file. The first five fields map 1:1 to the customer*
+// fields of an InvoiceRequest; the rest are stored-only metadata that is
+// kept for reference and NOT printed on the invoice.
+type Recipient struct {
+	Company   string `json:"company"`
+	Name      string `json:"name"`
+	Street    string `json:"street"`
+	ZIP       string `json:"zip"`
+	City      string `json:"city"`
+	VatID     string `json:"vatID"`
+	TaxNo     string `json:"taxNo"`
+	Register  string `json:"register"`
+	Directors string `json:"directors"`
+	Email     string `json:"email"`
+	Telephone string `json:"telephone"`
+	Fax       string `json:"fax"`
 }
 
 type LineItem struct {
@@ -174,12 +194,25 @@ type Design struct {
 var profiles = map[string]*Profile{}
 var designs = map[string]*Design{}
 
+// recipients is mutated at runtime via the save/delete endpoints, so unlike
+// profiles/designs it must be guarded. recipientDir is where files are read
+// from and written to.
+const recipientDir = "recipients"
+
+var (
+	recipientsMu sync.RWMutex
+	recipients   = map[string]*Recipient{}
+)
+
 func main() {
 	if err := loadProfiles("profiles"); err != nil {
 		log.Printf("warning: could not load profiles: %v", err)
 	}
 	if err := loadDesigns("designs"); err != nil {
 		log.Printf("warning: could not load designs: %v", err)
+	}
+	if err := loadRecipients(recipientDir); err != nil {
+		log.Printf("warning: could not load recipients: %v", err)
 	}
 
 	mux := http.NewServeMux()
@@ -188,6 +221,10 @@ func main() {
 	mux.Handle("/", http.FileServer(http.FS(staticFS)))
 	mux.HandleFunc("GET /api/profiles", handleProfiles)
 	mux.HandleFunc("GET /api/profiles/{key}", handleProfile)
+	mux.HandleFunc("GET /api/recipients", handleRecipients)
+	mux.HandleFunc("GET /api/recipients/{key}", handleRecipient)
+	mux.HandleFunc("POST /api/recipients", handleSaveRecipient)
+	mux.HandleFunc("DELETE /api/recipients/{key}", handleDeleteRecipient)
 	mux.HandleFunc("GET /api/designs", handleDesigns)
 	mux.HandleFunc("GET /api/designs/{key}", handleDesign)
 	mux.HandleFunc("POST /generate", handleGenerate)
@@ -245,6 +282,173 @@ func handleProfile(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(p)
+}
+
+func loadRecipients(dir string) error {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil // no recipients saved yet — not an error
+		}
+		return err
+	}
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".json") {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join(dir, e.Name()))
+		if err != nil {
+			log.Printf("skipping %s: %v", e.Name(), err)
+			continue
+		}
+		var rcpt Recipient
+		if err := json.Unmarshal(data, &rcpt); err != nil {
+			log.Printf("skipping %s (invalid JSON): %v", e.Name(), err)
+			continue
+		}
+		key := strings.TrimSuffix(e.Name(), ".json")
+		recipients[key] = &rcpt
+		log.Printf("loaded recipient %q (%s)", key, recipientLabel(&rcpt))
+	}
+	return nil
+}
+
+// recipientLabel returns the company name, falling back to the contact name.
+func recipientLabel(r *Recipient) string {
+	if strings.TrimSpace(r.Company) != "" {
+		return r.Company
+	}
+	return r.Name
+}
+
+// slugify turns an arbitrary label into a filesystem- and URL-safe key
+// containing only [a-z0-9-]. This is the sole defense against path traversal
+// for the recipient files, so it must never emit "/", "." or "..".
+func slugify(s string) string {
+	s = strings.ToLower(strings.TrimSpace(s))
+	var b strings.Builder
+	prevDash := false
+	for _, r := range s {
+		switch {
+		case r >= 'a' && r <= 'z', r >= '0' && r <= '9':
+			b.WriteRune(r)
+			prevDash = false
+		case r == 'ä':
+			b.WriteString("ae")
+			prevDash = false
+		case r == 'ö':
+			b.WriteString("oe")
+			prevDash = false
+		case r == 'ü':
+			b.WriteString("ue")
+			prevDash = false
+		case r == 'ß':
+			b.WriteString("ss")
+			prevDash = false
+		default:
+			if !prevDash && b.Len() > 0 {
+				b.WriteRune('-')
+				prevDash = true
+			}
+		}
+	}
+	return strings.Trim(b.String(), "-")
+}
+
+func handleRecipients(w http.ResponseWriter, r *http.Request) {
+	type summary struct {
+		Key   string `json:"key"`
+		Label string `json:"label"`
+	}
+	recipientsMu.RLock()
+	list := make([]summary, 0, len(recipients))
+	for k, rcpt := range recipients {
+		list = append(list, summary{Key: k, Label: recipientLabel(rcpt)})
+	}
+	recipientsMu.RUnlock()
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(list)
+}
+
+func handleRecipient(w http.ResponseWriter, r *http.Request) {
+	key := r.PathValue("key")
+	recipientsMu.RLock()
+	rcpt, ok := recipients[key]
+	recipientsMu.RUnlock()
+	if !ok {
+		http.Error(w, "recipient not found", http.StatusNotFound)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(rcpt)
+}
+
+func handleSaveRecipient(w http.ResponseWriter, r *http.Request) {
+	var rcpt Recipient
+	if err := json.NewDecoder(r.Body).Decode(&rcpt); err != nil {
+		http.Error(w, "invalid JSON: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+	if strings.TrimSpace(rcpt.Name) == "" && strings.TrimSpace(rcpt.Company) == "" {
+		http.Error(w, "Firma oder Name erforderlich", http.StatusBadRequest)
+		return
+	}
+	key := slugify(recipientLabel(&rcpt))
+	if key == "" {
+		http.Error(w, "konnte keinen gültigen Schlüssel ableiten", http.StatusBadRequest)
+		return
+	}
+
+	data, err := json.MarshalIndent(&rcpt, "", "  ")
+	if err != nil {
+		http.Error(w, "encode error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if err := os.MkdirAll(recipientDir, 0o755); err != nil {
+		http.Error(w, "konnte Verzeichnis nicht anlegen: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if err := os.WriteFile(filepath.Join(recipientDir, key+".json"), append(data, '\n'), 0o644); err != nil {
+		http.Error(w, "konnte nicht speichern: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	recipientsMu.Lock()
+	recipients[key] = &rcpt
+	recipientsMu.Unlock()
+	log.Printf("saved recipient %q (%s)", key, recipientLabel(&rcpt))
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(struct {
+		Key   string `json:"key"`
+		Label string `json:"label"`
+	}{Key: key, Label: recipientLabel(&rcpt)})
+}
+
+func handleDeleteRecipient(w http.ResponseWriter, r *http.Request) {
+	key := r.PathValue("key")
+	// Re-slugify defensively: the path key must round-trip to itself, else
+	// it never matched a real file and could be a traversal attempt.
+	if key == "" || key != slugify(key) {
+		http.Error(w, "ungültiger Schlüssel", http.StatusBadRequest)
+		return
+	}
+	recipientsMu.Lock()
+	_, ok := recipients[key]
+	if ok {
+		delete(recipients, key)
+	}
+	recipientsMu.Unlock()
+	if !ok {
+		http.Error(w, "recipient not found", http.StatusNotFound)
+		return
+	}
+	if err := os.Remove(filepath.Join(recipientDir, key+".json")); err != nil && !os.IsNotExist(err) {
+		http.Error(w, "konnte nicht löschen: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	log.Printf("deleted recipient %q", key)
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func loadDesigns(dir string) error {

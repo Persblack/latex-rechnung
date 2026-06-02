@@ -375,7 +375,19 @@
   <!-- Empfänger -->
   <div class="card">
     <h2>Empfänger</h2>
-    <div class="grid">
+    <div class="grid grid-2" style="align-items:end">
+      <div>
+        <label for="recipient">Gespeicherter Empfänger</label>
+        <select id="recipient">
+          <option value="">— neu eingeben —</option>
+        </select>
+      </div>
+      <div style="display:flex; gap:8px">
+        <button type="button" class="btn-helper" onclick="saveRecipient()">💾 Speichern</button>
+        <button type="button" class="btn-helper" id="deleteRecipientBtn" onclick="deleteRecipient()" disabled>🗑 Löschen</button>
+      </div>
+    </div>
+    <div class="grid" style="margin-top:14px">
       <div>
         <label for="customerCompany">Firma <span style="color:var(--gray-400)">(optional)</span></label>
         <input type="text" id="customerCompany" placeholder="Muster GmbH">
@@ -399,6 +411,39 @@
         </div>
       </div>
     </div>
+    <details style="margin-top:14px">
+      <summary style="cursor:pointer; color:var(--gray-400); font-size:14px">Stammdaten (optional, nicht auf der Rechnung)</summary>
+      <div class="grid grid-2" style="margin-top:12px">
+        <div>
+          <label for="recipientVatID">USt-IdNr.</label>
+          <input type="text" id="recipientVatID" placeholder="DE123456789">
+        </div>
+        <div>
+          <label for="recipientTaxNo">Steuer-Nr.</label>
+          <input type="text" id="recipientTaxNo" placeholder="050/117/03579">
+        </div>
+        <div>
+          <label for="recipientRegister">Handelsregister</label>
+          <input type="text" id="recipientRegister" placeholder="Amtsgericht … HRB …">
+        </div>
+        <div>
+          <label for="recipientDirectors">Geschäftsführer</label>
+          <input type="text" id="recipientDirectors" placeholder="Max Muster, Erika Muster">
+        </div>
+        <div>
+          <label for="recipientEmail">E-Mail</label>
+          <input type="text" id="recipientEmail" placeholder="info@example.com">
+        </div>
+        <div>
+          <label for="recipientTelephone">Telefon</label>
+          <input type="text" id="recipientTelephone" placeholder="+49 …">
+        </div>
+        <div>
+          <label for="recipientFax">Fax</label>
+          <input type="text" id="recipientFax" placeholder="+49 …">
+        </div>
+      </div>
+    </details>
   </div>
 
   <!-- Rechnungsdaten -->
@@ -553,6 +598,83 @@
     summary.style.display = 'block';
     summary.textContent = `${p.senderName} · ${p.senderStreet}, ${p.senderZIP} ${p.senderCity} · ${p.senderEmail}`;
   });
+
+  // --- Saved recipients (Empfänger) -------------------------------------
+  // Maps recipient JSON keys to the dashboard input ids they fill.
+  const RECIPIENT_FIELDS = {
+    company:   'customerCompany',
+    name:      'customerName',
+    street:    'customerStreet',
+    zip:       'customerZIP',
+    city:      'customerCity',
+    vatID:     'recipientVatID',
+    taxNo:     'recipientTaxNo',
+    register:  'recipientRegister',
+    directors: 'recipientDirectors',
+    email:     'recipientEmail',
+    telephone: 'recipientTelephone',
+    fax:       'recipientFax',
+  };
+
+  function loadRecipients(selectKey) {
+    return fetch('/api/recipients')
+      .then(r => r.json())
+      .then(list => {
+        list.sort((a, b) => a.label.localeCompare(b.label));
+        const sel = $('recipient');
+        sel.innerHTML = '<option value="">— neu eingeben —</option>';
+        list.forEach(rc => {
+          const opt = document.createElement('option');
+          opt.value = rc.key;
+          opt.textContent = rc.label;
+          sel.appendChild(opt);
+        });
+        if (selectKey) sel.value = selectKey;
+        $('deleteRecipientBtn').disabled = !sel.value;
+      });
+  }
+  loadRecipients();
+
+  $('recipient').addEventListener('change', async () => {
+    const key = $('recipient').value;
+    $('deleteRecipientBtn').disabled = !key;
+    if (!key) return;
+    const rc = await fetch(`/api/recipients/${key}`).then(r => r.json());
+    for (const [field, id] of Object.entries(RECIPIENT_FIELDS)) {
+      $(id).value = rc[field] || '';
+    }
+  });
+
+  async function saveRecipient() {
+    const payload = {};
+    for (const [field, id] of Object.entries(RECIPIENT_FIELDS)) {
+      payload[field] = $(id).value.trim();
+    }
+    if (!payload.name && !payload.company) {
+      showError('Firma oder Name erforderlich, um einen Empfänger zu speichern.');
+      return;
+    }
+    const res = await fetch('/api/recipients', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) { showError(await res.text()); return; }
+    const saved = await res.json();
+    await loadRecipients(saved.key);
+    $('error').style.display = 'none';
+  }
+
+  async function deleteRecipient() {
+    const key = $('recipient').value;
+    if (!key) return;
+    const label = $('recipient').selectedOptions[0].textContent;
+    if (!confirm(`Empfänger „${label}" löschen?`)) return;
+    const res = await fetch(`/api/recipients/${key}`, { method: 'DELETE' });
+    if (!res.ok) { showError(await res.text()); return; }
+    await loadRecipients();
+    $('error').style.display = 'none';
+  }
 
   // Date helpers.
   function toDE(date) {
