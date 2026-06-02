@@ -5,7 +5,7 @@
   "payDate": "17.06.2026",
   "invoiceReference": "2026-002",
   "invoiceSalutation": "Sehr geehrte Damen und Herren,",
-  "invoiceText": "für die Entwicklung und den Betrieb Ihres Dashboards erlaube ich mir, Ihnen den nachstehenden Betrag in Rechnung zu stellen.",
+  "invoiceText": "für Entwicklung und Betrieb Ihres Dashboards erlaube ich mir, Ihnen den Betrag in Rechnung zu stellen. Listenpreis und der als Partner gewährte Nachlass sind je Position ausgewiesen.",
   "invoiceEnclosures": "",
   "invoiceClosing": "Mit freundlichen Grüßen",
   "customerCompany": "Remexian Pharma GmbH",
@@ -23,19 +23,19 @@
   "items": [
     {
       "description": "Entwicklung Dashboard-Webanwendung (einmalig)",
-      "unitPrice": "2400.00",
+      "unitPrice": "2500.00",
       "quantity": "1",
       "vatRate": "",
-      "discountValue": "",
-      "discountKind": ""
+      "discountValue": "2101.00",
+      "discountKind": "amount"
     },
     {
-      "description": "VPS-Hosting Dashboard — Jahrespauschale 01.06.2026–31.05.2027",
-      "unitPrice": "360.00",
-      "quantity": "1",
+      "description": "VPS-Hosting Dashboard — Jahrespauschale 01.06.2026–31.05.2027 (12 Monate)",
+      "unitPrice": "39.99",
+      "quantity": "12",
       "vatRate": "",
-      "discountValue": "",
-      "discountKind": ""
+      "discountValue": "240.00",
+      "discountKind": "amount"
     }
   ]
 }

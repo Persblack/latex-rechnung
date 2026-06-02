@@ -5,7 +5,7 @@
   "payDate": "17.06.2026",
   "invoiceReference": "2026-001",
   "invoiceSalutation": "Sehr geehrte Damen und Herren,",
-  "invoiceText": "für die folgenden Leistungen rund um Ihre Website remexian.com erlaube ich mir, Ihnen den nachstehenden Betrag in Rechnung zu stellen.",
+  "invoiceText": "für die nachstehenden Leistungen rund um Ihren Produktkatalog erlaube ich mir, Ihnen den Betrag in Rechnung zu stellen. Listenpreis und der als Partner gewährte Nachlass sind je Position ausgewiesen.",
   "invoiceEnclosures": "",
   "invoiceClosing": "Mit freundlichen Grüßen",
   "customerCompany": "Remexian Pharma GmbH",
@@ -13,7 +13,7 @@
   "customerStreet": "Märkersteig 27",
   "customerZIP": "D-14974",
   "customerCity": "Ludwigsfelde",
-  "projectTitle": "Website remexian.com",
+  "projectTitle": "Produktkatalog produktkatalogremexian.de",
   "useVat": false,
   "hideQR": false,
   "language": "de",
@@ -22,20 +22,20 @@
   "clauses": [],
   "items": [
     {
-      "description": "Webentwicklung Website remexian.com (einmalig)",
-      "unitPrice": "1200.00",
+      "description": "Webentwicklung Produktkatalog (einmalig)",
+      "unitPrice": "1500.00",
       "quantity": "1",
       "vatRate": "",
-      "discountValue": "",
-      "discountKind": ""
+      "discountValue": "1101.00",
+      "discountKind": "amount"
     },
     {
-      "description": "Webhosting & Domain remexian.com — Jahrespauschale 01.06.2026–31.05.2027",
-      "unitPrice": "180.00",
-      "quantity": "1",
+      "description": "Webhosting & Domain produktkatalogremexian.de — Jahrespauschale 01.06.2026–31.05.2027 (12 Monate)",
+      "unitPrice": "19.99",
+      "quantity": "12",
       "vatRate": "",
-      "discountValue": "",
-      "discountKind": ""
+      "discountValue": "120.00",
+      "discountKind": "amount"
     }
   ]
 }
