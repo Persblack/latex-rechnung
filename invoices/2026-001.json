@@ -23,10 +23,10 @@
   "items": [
     {
       "description": "Webentwicklung Produktkatalog (einmalig)",
-      "unitPrice": "1500.00",
+      "unitPrice": "1200.00",
       "quantity": "1",
       "vatRate": "",
-      "discountValue": "1101.00",
+      "discountValue": "801.00",
       "discountKind": "amount"
     },
     {
