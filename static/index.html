@@ -336,6 +336,24 @@
     <button type="button" class="btn-helper" onclick="fillTestData()" style="padding:6px 14px">Testdaten</button>
   </div>
 
+  <!-- Gespeicherte Rechnungen -->
+  <div class="card">
+    <h2>Gespeicherte Rechnungen</h2>
+    <div class="grid grid-2" style="align-items:end">
+      <div>
+        <label for="storedInvoice">Rechnung laden</label>
+        <select id="storedInvoice">
+          <option value="">— neue Rechnung —</option>
+        </select>
+      </div>
+      <div style="display:flex; gap:8px">
+        <button type="button" class="btn-helper" onclick="saveInvoice()">💾 Speichern</button>
+        <button type="button" class="btn-helper" id="deleteInvoiceBtn" onclick="deleteInvoice()" disabled>🗑 Löschen</button>
+      </div>
+    </div>
+    <div class="profile-summary" id="invoiceStatus" style="display:none"></div>
+  </div>
+
   <!-- Absender -->
   <div class="card">
     <h2>Absender</h2>
@@ -682,6 +700,139 @@
     $('error').style.display = 'none';
   }
 
+  // --- Saved invoices (load / edit / save / delete) ---------------------
+  // currentInvoiceKey is the key of the invoice currently loaded into the
+  // form, or '' for a fresh invoice. It decides whether Save overwrites
+  // (PUT) the loaded record or creates a new one (POST).
+  let currentInvoiceKey = '';
+
+  // slugifyRef mirrors the server's slugify for invoice numbers, so the
+  // client can tell whether an edited number still targets the loaded record.
+  function slugifyRef(s) {
+    return String(s).toLowerCase().trim()
+      .replace(/ä/g, 'ae').replace(/ö/g, 'oe').replace(/ü/g, 'ue').replace(/ß/g, 'ss')
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/^-+|-+$/g, '');
+  }
+
+  function setInvoiceStatus(msg) {
+    const el = $('invoiceStatus');
+    if (!msg) { el.style.display = 'none'; el.textContent = ''; return; }
+    el.style.display = 'block';
+    el.textContent = msg;
+  }
+
+  function loadInvoicesList(selectKey) {
+    return fetch('/api/invoices')
+      .then(r => r.json())
+      .then(list => {
+        list.sort((a, b) => a.label.localeCompare(b.label));
+        const sel = $('storedInvoice');
+        sel.innerHTML = '<option value="">— neue Rechnung —</option>';
+        list.forEach(inv => {
+          const opt = document.createElement('option');
+          opt.value = inv.key;
+          opt.textContent = inv.label;
+          sel.appendChild(opt);
+        });
+        if (selectKey) sel.value = selectKey;
+        $('deleteInvoiceBtn').disabled = !sel.value;
+      });
+  }
+  loadInvoicesList();
+
+  function setVal(id, v) { $(id).value = v == null ? '' : v; }
+
+  // applyInvoice repopulates every form field from a stored InvoiceRequest.
+  function applyInvoice(req) {
+    setVal('profile', req.profileKey);
+    $('profile').dispatchEvent(new Event('change'));
+    setVal('design', req.design);
+    $('useVat').checked = !!req.useVat;
+    $('showQR').checked = !req.hideQR;
+    $('langEnglish').checked = req.language === 'en';
+    syncVatClass();
+
+    setVal('invoiceDate', req.invoiceDate);
+    setVal('payDate', req.payDate);
+    setVal('invoiceReference', req.invoiceReference);
+    setVal('invoiceSalutation', req.invoiceSalutation);
+    setVal('invoiceText', req.invoiceText);
+    setVal('invoiceEnclosures', req.invoiceEnclosures);
+    setVal('invoiceClosing', req.invoiceClosing);
+    setVal('customerCompany', req.customerCompany);
+    setVal('customerName', req.customerName);
+    setVal('customerStreet', req.customerStreet);
+    setVal('customerZIP', req.customerZIP);
+    setVal('customerCity', req.customerCity);
+    setVal('projectTitle', req.projectTitle);
+
+    const mode = req.paymentMode || 'transfer';
+    const radio = document.querySelector(`input[name="paymentMode"][value="${mode}"]`);
+    if (radio) radio.checked = true;
+    if (req.cashPaidDate && req.cashPaidDate.includes('.')) {
+      const [d, m, y] = req.cashPaidDate.split('.');
+      $('cashPaidDate').value = `${y}-${m}-${d}`;
+    } else {
+      $('cashPaidDate').value = '';
+    }
+    syncPaymentMode();
+
+    const cl = req.clauses || [];
+    $('clauseWarranty').checked = cl.includes('warranty_excluded');
+    $('clauseRetention').checked = cl.includes('retention_of_title');
+    $('clauseLateFee').checked = cl.includes('late_fee_warning');
+
+    $('items').innerHTML = '';
+    const items = req.items || [];
+    items.forEach(it => addItem(it.description, it.unitPrice, it.quantity, it.vatRate, it.discountValue, it.discountKind));
+    if (items.length === 0) addItem();
+  }
+
+  $('storedInvoice').addEventListener('change', async () => {
+    const key = $('storedInvoice').value;
+    $('deleteInvoiceBtn').disabled = !key;
+    if (!key) { currentInvoiceKey = ''; setInvoiceStatus(''); return; }
+    const req = await fetch(`/api/invoices/${key}`).then(r => r.json());
+    applyInvoice(req);
+    currentInvoiceKey = key;
+    setInvoiceStatus(`Geladen: ${$('storedInvoice').selectedOptions[0].textContent} — „Speichern" überschreibt diese Rechnung.`);
+  });
+
+  async function saveInvoice() {
+    const payload = collectPayload();
+    if (!payload.invoiceReference.trim()) {
+      showError('Rechnungsnummer erforderlich, um die Rechnung zu speichern.');
+      return;
+    }
+    const key = slugifyRef(payload.invoiceReference);
+    const editing = currentInvoiceKey && currentInvoiceKey === key;
+    const res = await fetch(editing ? `/api/invoices/${key}` : '/api/invoices', {
+      method: editing ? 'PUT' : 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) { showError(await res.text()); return; }
+    const saved = await res.json();
+    currentInvoiceKey = saved.key;
+    await loadInvoicesList(saved.key);
+    $('error').style.display = 'none';
+    setInvoiceStatus(`Gespeichert: ${saved.label}`);
+  }
+
+  async function deleteInvoice() {
+    const key = $('storedInvoice').value;
+    if (!key) return;
+    const label = $('storedInvoice').selectedOptions[0].textContent;
+    if (!confirm(`Rechnung „${label}" löschen?`)) return;
+    const res = await fetch(`/api/invoices/${key}`, { method: 'DELETE' });
+    if (!res.ok) { showError(await res.text()); return; }
+    if (currentInvoiceKey === key) currentInvoiceKey = '';
+    await loadInvoicesList();
+    setInvoiceStatus('');
+    $('error').style.display = 'none';
+  }
+
   // Date helpers.
   function toDE(date) {
     const d = String(date.getDate()).padStart(2, '0');
@@ -820,18 +971,11 @@
     }
   }
 
-  async function generateDoc(endpoint, filePrefix, btnId) {
-    const btn = $(btnId);
-    const spinnerId = btnId === 'generateBtn' ? 'spinnerInv' : 'spinnerLS';
-    const errorEl = $('error');
-
-    errorEl.style.display = 'none';
-
-    const profileKey = $('profile').value;
-    if (!profileKey) { showError('Bitte ein Absender-Profil wählen.'); return; }
-
+  // collectItems reads the line-item rows into the API shape. Incomplete rows
+  // (missing description/price/quantity) are dropped.
+  function collectItems() {
     const useVat = $('useVat').checked;
-    const items = [...document.querySelectorAll('.item-row')].map(row => ({
+    return [...document.querySelectorAll('.item-row')].map(row => ({
       description:   row.querySelector('.item-desc').value,
       unitPrice:     row.querySelector('.item-price').value,
       quantity:      row.querySelector('.item-qty').value,
@@ -839,9 +983,11 @@
       discountValue: row.querySelector('.item-disc-val').value,
       discountKind:  row.querySelector('.item-disc-kind').value,
     })).filter(i => i.description && i.unitPrice && i.quantity);
+  }
 
-    if (items.length === 0) { showError('Mindestens eine vollständige Position erforderlich.'); return; }
-
+  // collectPayload serializes the whole form into an InvoiceRequest — the same
+  // shape /generate consumes and the same shape persisted by /api/invoices.
+  function collectPayload() {
     const paymentMode = document.querySelector('input[name="paymentMode"]:checked')?.value || 'transfer';
     const clauses = [];
     if ($('clauseWarranty').checked) clauses.push('warranty_excluded');
@@ -854,9 +1000,8 @@
       const [y, m, d] = rawCashDate.split('-');
       cashPaidDate = `${d}.${m}.${y}`;
     }
-
-    const payload = {
-      profileKey,
+    return {
+      profileKey:        $('profile').value,
       design:            $('design').value,
       invoiceDate:       $('invoiceDate').value,
       payDate:           $('payDate').value,
@@ -871,14 +1016,27 @@
       customerZIP:       $('customerZIP').value,
       customerCity:      $('customerCity').value,
       projectTitle:      $('projectTitle').value,
-      useVat,
-      hideQR: !$('showQR').checked,
-      language: $('langEnglish').checked ? 'en' : 'de',
+      useVat:            $('useVat').checked,
+      hideQR:            !$('showQR').checked,
+      language:          $('langEnglish').checked ? 'en' : 'de',
       paymentMode,
       cashPaidDate,
       clauses,
-      items,
+      items:             collectItems(),
     };
+  }
+
+  async function generateDoc(endpoint, filePrefix, btnId) {
+    const btn = $(btnId);
+    const spinnerId = btnId === 'generateBtn' ? 'spinnerInv' : 'spinnerLS';
+    const errorEl = $('error');
+
+    errorEl.style.display = 'none';
+
+    if (!$('profile').value) { showError('Bitte ein Absender-Profil wählen.'); return; }
+
+    const payload = collectPayload();
+    if (payload.items.length === 0) { showError('Mindestens eine vollständige Position erforderlich.'); return; }
 
     btn.disabled = true;
     $(spinnerId).style.display = 'block';

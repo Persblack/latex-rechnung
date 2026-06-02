@@ -221,6 +221,18 @@ var (
 	recipients   = map[string]*Recipient{}
 )
 
+// invoices holds saved invoices, keyed by the slugified invoice number. Each
+// stored value is the full InvoiceRequest, so loading one repopulates the
+// dashboard form for editing. Like recipients it is mutated at runtime via the
+// save/update/delete endpoints, so it is mutex-guarded. invoiceDir is a var
+// (not const) so tests can redirect it to a temp directory.
+var invoiceDir = "invoices"
+
+var (
+	invoicesMu sync.RWMutex
+	invoices   = map[string]*InvoiceRequest{}
+)
+
 func main() {
 	if err := loadProfiles("profiles"); err != nil {
 		log.Printf("warning: could not load profiles: %v", err)
@@ -230,6 +242,9 @@ func main() {
 	}
 	if err := loadRecipients(recipientDir); err != nil {
 		log.Printf("warning: could not load recipients: %v", err)
+	}
+	if err := loadInvoices(invoiceDir); err != nil {
+		log.Printf("warning: could not load invoices: %v", err)
 	}
 
 	mux := http.NewServeMux()
@@ -244,6 +259,11 @@ func main() {
 	mux.HandleFunc("DELETE /api/recipients/{key}", handleDeleteRecipient)
 	mux.HandleFunc("GET /api/designs", handleDesigns)
 	mux.HandleFunc("GET /api/designs/{key}", handleDesign)
+	mux.HandleFunc("GET /api/invoices", handleInvoices)
+	mux.HandleFunc("GET /api/invoices/{key}", handleInvoice)
+	mux.HandleFunc("POST /api/invoices", handleSaveInvoice)
+	mux.HandleFunc("PUT /api/invoices/{key}", handleUpdateInvoice)
+	mux.HandleFunc("DELETE /api/invoices/{key}", handleDeleteInvoice)
 	mux.HandleFunc("POST /generate", handleGenerate)
 	mux.HandleFunc("POST /lieferschein", handleLieferschein)
 
@@ -465,6 +485,194 @@ func handleDeleteRecipient(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	log.Printf("deleted recipient %q", key)
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// loadInvoices reads every invoices/*.json into the in-memory map at startup.
+// A missing directory is not an error (no invoices saved yet).
+func loadInvoices(dir string) error {
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return nil
+		}
+		return err
+	}
+	for _, e := range entries {
+		if e.IsDir() || !strings.HasSuffix(e.Name(), ".json") {
+			continue
+		}
+		data, err := os.ReadFile(filepath.Join(dir, e.Name()))
+		if err != nil {
+			log.Printf("skipping %s: %v", e.Name(), err)
+			continue
+		}
+		var req InvoiceRequest
+		if err := json.Unmarshal(data, &req); err != nil {
+			log.Printf("skipping %s (invalid JSON): %v", e.Name(), err)
+			continue
+		}
+		key := strings.TrimSuffix(e.Name(), ".json")
+		invoices[key] = &req
+		log.Printf("loaded invoice %q (%s)", key, invoiceLabel(&req))
+	}
+	return nil
+}
+
+// invoiceLabel renders a human-readable list label: "<Nr.> — <Kunde>".
+func invoiceLabel(req *InvoiceRequest) string {
+	customer := strings.TrimSpace(req.CustomerCompany)
+	if customer == "" {
+		customer = strings.TrimSpace(req.CustomerName)
+	}
+	ref := strings.TrimSpace(req.InvoiceReference)
+	switch {
+	case ref != "" && customer != "":
+		return ref + " — " + customer
+	case ref != "":
+		return ref
+	case customer != "":
+		return customer
+	default:
+		return "(ohne Nummer)"
+	}
+}
+
+func handleInvoices(w http.ResponseWriter, r *http.Request) {
+	type summary struct {
+		Key   string `json:"key"`
+		Label string `json:"label"`
+	}
+	invoicesMu.RLock()
+	list := make([]summary, 0, len(invoices))
+	for k, req := range invoices {
+		list = append(list, summary{Key: k, Label: invoiceLabel(req)})
+	}
+	invoicesMu.RUnlock()
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(list)
+}
+
+func handleInvoice(w http.ResponseWriter, r *http.Request) {
+	key := r.PathValue("key")
+	invoicesMu.RLock()
+	req, ok := invoices[key]
+	invoicesMu.RUnlock()
+	if !ok {
+		http.Error(w, "invoice not found", http.StatusNotFound)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(req)
+}
+
+// handleSaveInvoice creates a new stored invoice. It refuses (409 Conflict) to
+// overwrite an existing number — editing an existing invoice goes through
+// handleUpdateInvoice (PUT). This guards against silently clobbering a
+// different invoice that happens to share a number.
+func handleSaveInvoice(w http.ResponseWriter, r *http.Request) {
+	req, key, ok := decodeInvoice(w, r)
+	if !ok {
+		return
+	}
+	invoicesMu.RLock()
+	_, exists := invoices[key]
+	invoicesMu.RUnlock()
+	if exists {
+		http.Error(w, fmt.Sprintf("Rechnungsnummer %q existiert bereits. Zum Ändern die gespeicherte Rechnung laden und erneut speichern.", req.InvoiceReference), http.StatusConflict)
+		return
+	}
+	persistInvoice(w, req, key)
+}
+
+// handleUpdateInvoice overwrites an existing stored invoice identified by the
+// path key. The invoice number in the body must slugify to the same key, so a
+// renamed number can't accidentally overwrite an unrelated record.
+func handleUpdateInvoice(w http.ResponseWriter, r *http.Request) {
+	pathKey := r.PathValue("key")
+	if pathKey == "" || pathKey != slugify(pathKey) {
+		http.Error(w, "ungültiger Schlüssel", http.StatusBadRequest)
+		return
+	}
+	req, bodyKey, ok := decodeInvoice(w, r)
+	if !ok {
+		return
+	}
+	if bodyKey != pathKey {
+		http.Error(w, "Rechnungsnummer im Body passt nicht zum Pfad — zum Umbenennen neu speichern", http.StatusBadRequest)
+		return
+	}
+	persistInvoice(w, req, pathKey)
+}
+
+// decodeInvoice parses an InvoiceRequest from the body and derives its key.
+// It writes an error response and returns ok=false on any validation failure.
+func decodeInvoice(w http.ResponseWriter, r *http.Request) (req InvoiceRequest, key string, ok bool) {
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "invalid JSON: "+err.Error(), http.StatusBadRequest)
+		return req, "", false
+	}
+	if strings.TrimSpace(req.InvoiceReference) == "" {
+		http.Error(w, "Rechnungsnummer erforderlich, um eine Rechnung zu speichern", http.StatusBadRequest)
+		return req, "", false
+	}
+	key = slugify(req.InvoiceReference)
+	if key == "" {
+		http.Error(w, "konnte keinen gültigen Schlüssel aus der Rechnungsnummer ableiten", http.StatusBadRequest)
+		return req, "", false
+	}
+	return req, key, true
+}
+
+// persistInvoice writes the invoice to disk and updates the in-memory map.
+func persistInvoice(w http.ResponseWriter, req InvoiceRequest, key string) {
+	data, err := json.MarshalIndent(&req, "", "  ")
+	if err != nil {
+		http.Error(w, "encode error: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if err := os.MkdirAll(invoiceDir, 0o755); err != nil {
+		http.Error(w, "konnte Verzeichnis nicht anlegen: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	if err := os.WriteFile(filepath.Join(invoiceDir, key+".json"), append(data, '\n'), 0o644); err != nil {
+		http.Error(w, "konnte nicht speichern: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	stored := req
+	invoicesMu.Lock()
+	invoices[key] = &stored
+	invoicesMu.Unlock()
+	log.Printf("saved invoice %q (%s)", key, invoiceLabel(&stored))
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(struct {
+		Key   string `json:"key"`
+		Label string `json:"label"`
+	}{Key: key, Label: invoiceLabel(&stored)})
+}
+
+func handleDeleteInvoice(w http.ResponseWriter, r *http.Request) {
+	key := r.PathValue("key")
+	if key == "" || key != slugify(key) {
+		http.Error(w, "ungültiger Schlüssel", http.StatusBadRequest)
+		return
+	}
+	invoicesMu.Lock()
+	_, ok := invoices[key]
+	if ok {
+		delete(invoices, key)
+	}
+	invoicesMu.Unlock()
+	if !ok {
+		http.Error(w, "invoice not found", http.StatusNotFound)
+		return
+	}
+	if err := os.Remove(filepath.Join(invoiceDir, key+".json")); err != nil && !os.IsNotExist(err) {
+		http.Error(w, "konnte nicht löschen: "+err.Error(), http.StatusInternalServerError)
+		return
+	}
+	log.Printf("deleted invoice %q", key)
 	w.WriteHeader(http.StatusNoContent)
 }
 
