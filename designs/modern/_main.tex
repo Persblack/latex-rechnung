@@ -21,14 +21,12 @@
 %  [x] Subtotal / Total
 %  [x] Notes-Block (Anrede + Rechnungstext + Grussformel)
 %  [x] Footer: Zahlungsinfo (IBAN, BIC, Bank)
-%  [x] QR-Platzhalter (TikZ-Box, da qrcode-Paket nicht verf.)
+%  [x] Echter EPC/Girocode-QR (epc-qr.png, server-seitig in Go gerendert)
+%       mit TikZ-Platzhalter als Fallback (\ifHasQRFile)
 %  [x] System-Info-Block (Invoice ID, Tax Nr, USt-ID)
 %  [x] §19 UStG Disclaimer (konditional: nur wenn \vatID leer)
 %  [x] Footer-Strip "SECURE * ENCRYPTED * VERIFIED"
 %  [ ] Florale Zeichnung (inspo-spezifisch, weggelassen)
-%  [ ] Funktionaler QR-Code (qrcode.sty nicht in TeX Live basic)
-%  LIMITATION: qrcode-Paket nicht in dieser TeX-Distribution.
-%              Als Next-Step: tlmgr install qrcode oder LuaLaTeX.
 % =============================================================
 
 \documentclass[a4paper,10pt]{article}
@@ -525,7 +523,13 @@
   \textcolor{brand}{\rule{1.1cm}{0.7pt}}
 
   \vspace{1.5mm}
-  \qrplaceholder{\invoiceReference}
+  \ifHasQRFile
+    % Echter EPC/Girocode-QR, server-seitig in den Build-Ordner gerendert.
+    \includegraphics[width=18mm]{epc-qr.png}
+  \else
+    % Fallback: dekorativer TikZ-Platzhalter (z.B. Barzahlung / fehlende IBAN).
+    \qrplaceholder{\invoiceReference}
+  \fi
 
   \vspace{0.5mm}
   {\fontsize{6pt}{7pt}\selectfont\textcolor{midgray}{\invoiceReference}}

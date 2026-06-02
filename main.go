@@ -18,6 +18,8 @@ import (
 	"strings"
 	"sync"
 	"text/template"
+
+	qrcode "github.com/skip2/go-qrcode"
 )
 
 //go:embed static all:templates all:designs
@@ -161,6 +163,11 @@ type TemplateData struct {
 
 	// QR-Code visibility (per-request UI toggle).
 	ShowQR bool // true when the design should render the QR-code block. Mirrors !req.HideQR.
+
+	// HasQRFile is true when a real EPC/Girocode QR image (epc-qr.png) was
+	// rendered into the build dir. Designs branch on \ifHasQRFile to
+	// \includegraphics it; when false they fall back to a placeholder.
+	HasQRFile bool
 
 	// Output language. Default: German. English when req.Language == "en".
 	IsEnglish bool
@@ -835,6 +842,23 @@ func buildDocument(req InvoiceRequest, p *Profile, cfg docConfig, designKey, doc
 		clauseSet[c] = true
 	}
 
+	// Render a real EPC/Girocode QR into the build dir when the request wants
+	// the QR (ShowQR), payment is by bank transfer (a SEPA QR is meaningless
+	// for cash), and the profile has the data to build a valid payload. On any
+	// failure we leave HasQRFile false so the design falls back to its
+	// placeholder rather than failing the build.
+	hasQRFile := false
+	if !req.HideQR && paymentMode == "transfer" {
+		if payload := buildEPCPayload(p, req, formatCents(totalGrossCents)); payload != "" {
+			// Error correction level M is mandated by the EPC specification.
+			if err := qrcode.WriteFile(payload, qrcode.Medium, 512, filepath.Join(tmpDir, "epc-qr.png")); err != nil {
+				log.Printf("EPC QR render failed for %s: %v; falling back to placeholder", req.InvoiceReference, err)
+			} else {
+				hasQRFile = true
+			}
+		}
+	}
+
 	data := TemplateData{
 		TaxID:             latexEscape(p.TaxID),
 		SenderName:        latexEscape(p.SenderName),
@@ -878,6 +902,7 @@ func buildDocument(req InvoiceRequest, p *Profile, cfg docConfig, designKey, doc
 		HasLogo:   hasLogo,
 
 		ShowQR:    !req.HideQR,
+		HasQRFile: hasQRFile,
 		IsEnglish: strings.EqualFold(req.Language, "en"),
 
 		HasProjectTitle: req.ProjectTitle != "",
@@ -944,6 +969,58 @@ func vatID(req InvoiceRequest, p *Profile) string {
 // not as a global rate on the invoice environment.
 func vatRate(_ InvoiceRequest, _ *Profile) int {
 	return 0
+}
+
+// buildEPCPayload assembles the EPC069-12 ("Girocode") version 002 payload for
+// a SEPA Credit Transfer (SCT) from raw, un-escaped profile/request data. The
+// returned string is encoded verbatim into the QR image; banking apps parse it
+// to pre-fill a transfer. Fields are LF-separated; trailing empty fields are
+// dropped. Returns "" (caller skips the QR) when IBAN or amount is missing.
+//
+// Field order (EPC069-12 §2.2): ServiceTag, Version, Charset, Identification,
+// BIC, Name, IBAN, Amount, PurposeCode, StructuredRef, UnstructuredRemittance.
+// We use the unstructured remittance (field 11) and leave the structured
+// reference (field 10) empty, as the two are mutually exclusive.
+func buildEPCPayload(p *Profile, req InvoiceRequest, grossTotalStr string) string {
+	iban := strings.ReplaceAll(p.AccountIBAN, " ", "")
+	if iban == "" || grossTotalStr == "" || grossTotalStr == "0.00" {
+		return ""
+	}
+
+	name := truncateRunes(strings.TrimSpace(p.SenderName), 70)
+	remittance := strings.TrimSpace("Rechnung " + req.InvoiceReference + " " + p.SenderName)
+	remittance = truncateRunes(remittance, 140)
+
+	fields := []string{
+		"BCD",                  // Service Tag
+		"002",                  // Version
+		"1",                    // Character set: 1 = UTF-8
+		"SCT",                  // Identification: SEPA Credit Transfer
+		strings.TrimSpace(p.AccountBIC), // BIC (optional within SEPA)
+		name,                            // Beneficiary name (≤70)
+		iban,                            // IBAN, no spaces
+		"EUR" + grossTotalStr,           // Amount, e.g. EUR398.50
+		"",                              // Purpose code (unused)
+		"",                              // Structured reference (unused)
+		remittance,                      // Unstructured remittance (≤140)
+	}
+
+	// Drop trailing empty fields per spec to keep the payload compact.
+	end := len(fields)
+	for end > 0 && fields[end-1] == "" {
+		end--
+	}
+	return strings.Join(fields[:end], "\n")
+}
+
+// truncateRunes shortens s to at most n runes (not bytes), keeping multibyte
+// characters intact.
+func truncateRunes(s string, n int) string {
+	r := []rune(s)
+	if len(r) <= n {
+		return s
+	}
+	return string(r[:n])
 }
 
 // itemDescription returns the LaTeX-escaped item description, with the VAT

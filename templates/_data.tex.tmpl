@@ -54,6 +54,10 @@
 % =============== QR-CODE TOGGLE ===============
 \newif\ifShowQR
 {{if .ShowQR}}\ShowQRtrue{{else}}\ShowQRfalse{{end}}
+% HasQRFile: true when a real EPC/Girocode QR image (epc-qr.png) was rendered
+% into the build dir. Designs \includegraphics it; else they use a placeholder.
+\newif\ifHasQRFile
+{{if .HasQRFile}}\HasQRFiletrue{{else}}\HasQRFilefalse{{end}}
 % =============== QR-CODE TOGGLE ===============
 
 
