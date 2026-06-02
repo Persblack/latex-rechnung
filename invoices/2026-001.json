@@ -1,0 +1,41 @@
+{
+  "profileKey": "rico-solo",
+  "design": "modern",
+  "invoiceDate": "03.06.2026",
+  "payDate": "17.06.2026",
+  "invoiceReference": "2026-001",
+  "invoiceSalutation": "Sehr geehrte Damen und Herren,",
+  "invoiceText": "für die folgenden Leistungen rund um Ihre Website remexian.com erlaube ich mir, Ihnen den nachstehenden Betrag in Rechnung zu stellen.",
+  "invoiceEnclosures": "",
+  "invoiceClosing": "Mit freundlichen Grüßen",
+  "customerCompany": "Remexian Pharma GmbH",
+  "customerName": "Michell Steinbuch",
+  "customerStreet": "Märkersteig 27",
+  "customerZIP": "D-14974",
+  "customerCity": "Ludwigsfelde",
+  "projectTitle": "Website remexian.com",
+  "useVat": false,
+  "hideQR": false,
+  "language": "de",
+  "paymentMode": "transfer",
+  "cashPaidDate": "",
+  "clauses": [],
+  "items": [
+    {
+      "description": "Webentwicklung Website remexian.com (einmalig)",
+      "unitPrice": "1200.00",
+      "quantity": "1",
+      "vatRate": "",
+      "discountValue": "",
+      "discountKind": ""
+    },
+    {
+      "description": "Webhosting & Domain remexian.com — Jahrespauschale 01.06.2026–31.05.2027",
+      "unitPrice": "180.00",
+      "quantity": "1",
+      "vatRate": "",
+      "discountValue": "",
+      "discountKind": ""
+    }
+  ]
+}
