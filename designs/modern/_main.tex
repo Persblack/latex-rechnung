@@ -239,6 +239,28 @@
   \expandafter\gappto\expandafter\allFeeRows\expandafter{\curRow}%
 }
 
+% \FeeDiscount: per-line discount (Nachlass) sub-row, emitted right after a
+% \Fee. The visible amount is the reduction; the invoice TOTAL comes from the
+% Go VAT layer (\NetTotal), which already nets out discounts, so this row is
+% display-only (we also keep \invoiceSubtotal consistent for completeness).
+% #1 = percent number (e.g. "10") or empty for a fixed-amount discount,
+% #2 = the discount amount in € (e.g. "9.00").
+% Appended raw via \gappto (no \edef needed: #1/#2 are literal arguments, and
+% \ifstrempty is evaluated when the table is typeset).
+\newcommand{\FeeDiscount}[2]{%
+  \FPsub{\myNewSub}{\invoiceSubtotal}{#2}%
+  \FPround{\myNewSubR}{\myNewSub}{2}%
+  \xdef\invoiceSubtotal{\myNewSubR}%
+  \gappto\allFeeRows{%
+    &
+    \textcolor{midgray}{\itshape\ifEnglish Discount\else Nachlass\fi\ifstrempty{#1}{}{ #1\,\%}} &
+    &
+    &
+    \textcolor{midgray}{-#2} \\[1pt]%
+    \arrayrulecolor{lightgray}\hline
+  }%
+}
+
 % \ProjectTitle (von _invoice.tex.tmpl)
 \newcommand{\ProjectTitle}[1]{\gdef\theProjectTitle{#1}}
 \gdef\theProjectTitle{}

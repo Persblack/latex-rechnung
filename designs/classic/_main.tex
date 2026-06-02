@@ -71,6 +71,15 @@
 }
 
 
+% Per-line discount (Nachlass), emitted by _invoice.tex right after its \Fee.
+% Rendered as an indented negative fee line so Oliver Corff's running total
+% (Gesamtsumme) nets out the discount and the reduction is shown transparently.
+% #1 = percent number (e.g. "10") or empty for a fixed-amount discount,
+% #2 = the discount amount in € (e.g. "9.00").
+\newcommand{\FeeDiscount}[2]{%
+  \Fee{\hspace*{1.5em}\textit{\ifEnglish Discount\else Nachlass\fi\ifstrempty{#1}{}{ #1\,\%}}}{-#2}{1}%
+}
+
 \begin{document}
 
 % ---- Language selection based on \ifEnglish macro from _data.tex ----

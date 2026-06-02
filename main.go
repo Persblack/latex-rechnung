@@ -76,6 +76,16 @@ type LineItem struct {
 	UnitPrice   string `json:"unitPrice"`
 	Quantity    string `json:"quantity"`
 	VatRate     string `json:"vatRate"` // "", "7", or "19"
+
+	// Optional per-line discount (Nachlass). DiscountKind selects how
+	// DiscountValue is interpreted; empty kind/value means no discount.
+	DiscountValue string `json:"discountValue"` // "10" (percent) or "9.00" (amount)
+	DiscountKind  string `json:"discountKind"`  // "percent" | "amount" | ""
+
+	// Computed for template rendering only (never read from the request).
+	HasDiscount       bool   `json:"-"`
+	DiscountLabel     string `json:"-"` // e.g. "10\,\%" for percent; empty for fixed amount
+	DiscountAmountStr string `json:"-"` // positive discount amount in €, e.g. "9.00"
 }
 
 // VatBreakdown holds the aggregated net/vat/gross amounts for one VAT rate.
@@ -678,6 +688,38 @@ func roundHalfUp(x float64) int64 {
 	return int64(math.Floor(x + 0.5))
 }
 
+// lineDiscountCents returns the discount amount (in € cents) for a single line,
+// given that line's net before discount. A percentage discount is rounded
+// kaufmännisch; a fixed amount is capped at the line net so a line can never go
+// negative. Returns 0 when no discount is set.
+func lineDiscountCents(item LineItem, lineNetCents int64) int64 {
+	v := strings.TrimSpace(item.DiscountValue)
+	if v == "" {
+		return 0
+	}
+	switch item.DiscountKind {
+	case "percent":
+		p, err := strconv.ParseFloat(v, 64)
+		if err != nil || p <= 0 {
+			return 0
+		}
+		if p > 100 {
+			p = 100
+		}
+		return roundHalfUp(float64(lineNetCents) * p / 100.0)
+	case "amount":
+		c := parseCents(v)
+		if c < 0 {
+			c = 0
+		}
+		if c > lineNetCents {
+			c = lineNetCents
+		}
+		return c
+	}
+	return 0
+}
+
 // computeVatBreakdown aggregates per-item net/vat/gross amounts grouped by VAT
 // rate and returns them sorted by rate ascending.
 func computeVatBreakdown(items []LineItem, useVat bool) []VatBreakdown {
@@ -693,6 +735,10 @@ func computeVatBreakdown(items []LineItem, useVat bool) []VatBreakdown {
 		// Fixed-point multiply: unitCents (€ cents) × qtyCents (hundredths of a
 		// unit) ÷ 100 = line net in € cents.
 		lineNetCents := unitCents * qtyCents / 100
+
+		// Apply the per-line discount BEFORE VAT: the discounted net is the
+		// taxable base (Entgelt, §10 UStG), so VAT must be computed on it.
+		lineNetCents -= lineDiscountCents(item, lineNetCents)
 
 		rate := 0
 		if useVat && item.VatRate != "" {
@@ -804,12 +850,25 @@ func buildDocument(req InvoiceRequest, p *Profile, cfg docConfig, designKey, doc
 	// Escape line item descriptions; append VAT label when applicable.
 	escapedItems := make([]LineItem, len(req.Items))
 	for i, item := range req.Items {
-		escapedItems[i] = LineItem{
+		esc := LineItem{
 			Description: itemDescription(item, req.UseVat),
 			UnitPrice:   item.UnitPrice,
 			Quantity:    item.Quantity,
 			VatRate:     item.VatRate,
 		}
+		// Per-line discount display: compute the discount amount against the
+		// undiscounted line net so the invoice shows full price minus Nachlass.
+		lineNetCents := parseCents(item.UnitPrice) * parseCents(item.Quantity) / 100
+		if dc := lineDiscountCents(item, lineNetCents); dc > 0 {
+			esc.HasDiscount = true
+			esc.DiscountAmountStr = formatCents(dc)
+			if item.DiscountKind == "percent" {
+				// Pass just the (escaped) number; each design's \FeeDiscount
+				// macro appends the "%" sign so the percent rate is shown.
+				esc.DiscountLabel = latexEscape(strings.TrimSpace(item.DiscountValue))
+			}
+		}
+		escapedItems[i] = esc
 	}
 
 	// Compute VAT breakdown using original (unescaped) items.
