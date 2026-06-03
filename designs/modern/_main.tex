@@ -232,8 +232,8 @@
     \noexpand\textcolor{brand}{\noexpand\textbf{\fmtnum{\value{itemnum}}}} &
     \noexpand\textbf{#1} &
     #3 &
-    #2 &
-    \myLineTotR \noexpand\\[1pt]%
+    \noexpand\fmtmoney{#2} &
+    \noexpand\fmtmoney{\myLineTotR} \noexpand\\[1pt]%
     \noexpand\arrayrulecolor{lightgray}\noexpand\hline
   }%
   \expandafter\gappto\expandafter\allFeeRows\expandafter{\curRow}%
@@ -256,7 +256,7 @@
     \textcolor{midgray}{\itshape\ifEnglish Discount\else Nachlass\fi\ifstrempty{#1}{}{ #1\,\%}} &
     &
     &
-    \textcolor{midgray}{-#2} \\[1pt]%
+    \textcolor{midgray}{-\fmtmoney{#2}} \\[1pt]%
     \arrayrulecolor{lightgray}\hline
   }%
 }
@@ -436,29 +436,29 @@
   \ifHasAnyVat
     % USt-pflichtige Rechnung: Subtotal + pro-Rate VAT rows + Brutto Total
     \renewcommand{\VatBreakdownRow}[4]{%
-      \textcolor{midgray}{\ifEnglish VAT\else MwSt\fi~#1\,\%} & #3~EUR \\
+      \textcolor{midgray}{\ifEnglish VAT\else MwSt\fi~#1\,\%} & \fmtmoney{#3}~EUR \\
     }%
     \begin{tabular}{@{}p{4.2cm}r@{}}
       \arrayrulecolor{lightgray}
-      \textcolor{midgray}{\ifEnglish Subtotal\else Zwischensumme\fi} & \NetTotal~EUR \\
+      \textcolor{midgray}{\ifEnglish Subtotal\else Zwischensumme\fi} & \fmtmoney{\NetTotal}~EUR \\
       \hline
       \VatBreakdownRows
       \arrayrulecolor{brand}
       \hline
       \textbf{\textcolor{brand}{\ifEnglish Total Due (gross)\else Gesamtbetrag (brutto)\fi}} &
-      \textbf{\textcolor{brand}{\GrossTotal~EUR}} \\
+      \textbf{\textcolor{brand}{\fmtmoney{\GrossTotal}~EUR}} \\
     \end{tabular}
   \else
     % Kleinunternehmer: kein VAT
     \begin{tabular}{@{}p{4.2cm}r@{}}
       \arrayrulecolor{lightgray}
-      \textcolor{midgray}{\ifEnglish Subtotal\else Zwischensumme\fi} & \NetTotal~EUR \\
+      \textcolor{midgray}{\ifEnglish Subtotal\else Zwischensumme\fi} & \fmtmoney{\NetTotal}~EUR \\
       \hline
       \textcolor{midgray}{\ifEnglish VAT\else Umsatzsteuer\fi} & ---\,(\S\,19) \\[2pt]
       \arrayrulecolor{brand}
       \hline
       \textbf{\textcolor{brand}{\ifEnglish Total Due\else Gesamtbetrag\fi}} &
-      \textbf{\textcolor{brand}{\NetTotal~EUR}} \\
+      \textbf{\textcolor{brand}{\fmtmoney{\NetTotal}~EUR}} \\
     \end{tabular}
   \fi
   }

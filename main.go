@@ -118,6 +118,7 @@ type InvoiceRequest struct {
 	UseVat            bool       `json:"useVat"`
 	HideQR            bool       `json:"hideQR"`        // when true, designs suppress the QR-code block. Default false = QR rendered.
 	Language          string     `json:"language"`      // "de" (default) or "en". Empty => "de".
+	DecimalSeparator  string     `json:"decimalSeparator"` // "comma" (default, EUR) or "dot". Empty => "comma".
 	PaymentMode       string     `json:"paymentMode"`   // "transfer" (default) | "cash_due" | "cash_paid"
 	CashPaidDate      string     `json:"cashPaidDate"`  // ISO or DE date string, only used when paymentMode=cash_paid
 	Clauses           []string   `json:"clauses"`       // any of: "warranty_excluded", "retention_of_title", "late_fee_warning"
@@ -181,6 +182,11 @@ type TemplateData struct {
 
 	// Output language. Default: German. English when req.Language == "en".
 	IsEnglish bool
+
+	// CommaDecimal selects the decimal mark for amount DISPLAY: true => German
+	// comma (default for EUR), false => dot. Display-only — FP arithmetic and
+	// the EPC QR always use the dot form.
+	CommaDecimal bool
 
 	// Project title visibility.
 	HasProjectTitle bool // true when req.ProjectTitle != ""
@@ -1168,9 +1174,10 @@ func buildDocument(req InvoiceRequest, p *Profile, cfg docConfig, designKey, doc
 		ShortName: latexEscape(p.ShortName),
 		HasLogo:   hasLogo,
 
-		ShowQR:    !req.HideQR,
-		HasQRFile: hasQRFile,
-		IsEnglish: strings.EqualFold(req.Language, "en"),
+		ShowQR:       !req.HideQR,
+		HasQRFile:    hasQRFile,
+		IsEnglish:    strings.EqualFold(req.Language, "en"),
+		CommaDecimal: req.DecimalSeparator != "dot", // default comma (EUR)
 
 		HasProjectTitle: req.ProjectTitle != "",
 

@@ -393,6 +393,13 @@
       </label>
       <span>English statt Deutsch</span>
     </div>
+    <div class="toggle-row">
+      <label class="toggle">
+        <input type="checkbox" id="decimalDot">
+        <span class="toggle-slider"></span>
+      </label>
+      <span>Dezimaltrenner Punkt statt Komma <span style="color:var(--gray-400)">(Standard: Komma €)</span></span>
+    </div>
   </div>
 
   <!-- Empfänger -->
@@ -751,6 +758,7 @@
     $('useVat').checked = !!req.useVat;
     $('showQR').checked = !req.hideQR;
     $('langEnglish').checked = req.language === 'en';
+    $('decimalDot').checked = req.decimalSeparator === 'dot';
     syncVatClass();
 
     setVal('invoiceDate', req.invoiceDate);
@@ -1019,6 +1027,7 @@
       useVat:            $('useVat').checked,
       hideQR:            !$('showQR').checked,
       language:          $('langEnglish').checked ? 'en' : 'de',
+      decimalSeparator:  $('decimalDot').checked ? 'dot' : 'comma',
       paymentMode,
       cashPaidDate,
       clauses,

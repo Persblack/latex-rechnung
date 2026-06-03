@@ -61,6 +61,30 @@
 % =============== QR-CODE TOGGLE ===============
 
 
+% =============== DECIMAL SEPARATOR ===============
+% CommaDecimal selects the decimal mark for amount DISPLAY: comma (German,
+% default for EUR) vs dot. \fmtmoney is a display-only transform — FP arithmetic
+% and the EPC QR keep the raw dot value. Designs opt in by wrapping amounts in
+% \fmtmoney{...}; designs that don't are unaffected.
+\newif\ifCommaDecimal
+{{if .CommaDecimal}}\CommaDecimaltrue{{else}}\CommaDecimalfalse{{end}}
+\makeatletter
+% \fmtmoney{<dot-decimal>}: strips surrounding spaces (so it also works on the
+% spaced total macros), then swaps '.' for ',' as the decimal mark when comma
+% mode is on. Handles a leading '-' and integers without a fractional part.
+\def\fmtmoney#1{%
+  \edef\fm@x{\zap@space#1 \@empty}%
+  \ifCommaDecimal
+    \expandafter\fm@swapdot\fm@x..\fm@stop
+  \else
+    \fm@x
+  \fi}
+\def\fm@swapdot#1.#2.#3\fm@stop{%
+  \if\relax\detokenize{#2}\relax #1\else #1,#2\fi}
+\makeatother
+% =============== DECIMAL SEPARATOR ===============
+
+
 % =============== LANGUAGE TOGGLE ===============
 \newif\ifEnglish
 {{if .IsEnglish}}\Englishtrue{{else}}\Englishfalse{{end}}
