@@ -1,0 +1,33 @@
+{
+  "profileKey": "selim-oezdogan",
+  "design": "classic",
+  "invoiceDate": "30.05.2026",
+  "payDate": "06.06.2026",
+  "invoiceReference": "SO-2026-001",
+  "invoiceSalutation": "Sehr geehrter Herr Wojtowicz,",
+  "invoiceText": "für meine Dienstleistungen in Laupheim stelle ich Ihnen vorliegende Rechnung. Leistungszeitraum: 2025 und 2026.",
+  "invoiceEnclosures": "",
+  "invoiceClosing": "Mit freundlichen Grüßen",
+  "customerCompany": "",
+  "customerName": "Benjamin Wojtowicz",
+  "customerStreet": "Lange Straße 90",
+  "customerZIP": "88471",
+  "customerCity": "Laupheim",
+  "projectTitle": "",
+  "useVat": true,
+  "hideQR": false,
+  "language": "de",
+  "decimalSeparator": "comma",
+  "paymentMode": "transfer",
+  "cashPaidDate": "",
+  "clauses": [],
+  "items": [
+    { "description": "Mitarbeitesuche, -auswahl und Schulung", "unitPrice": "70.00", "quantity": "67", "vatRate": "19", "unit": "Std.", "discountValue": "", "discountKind": "" },
+    { "description": "On-line so wie Off-line Marketing", "unitPrice": "40.00", "quantity": "33", "vatRate": "19", "unit": "Std.", "discountValue": "", "discountKind": "" },
+    { "description": "Arbeitsbereichskonzeption und Prozessoptimierung", "unitPrice": "70.00", "quantity": "41", "vatRate": "19", "unit": "Std.", "discountValue": "", "discountKind": "" },
+    { "description": "Aufräumarbeiten und Müllentsorgung", "unitPrice": "40.00", "quantity": "49", "vatRate": "19", "unit": "Std.", "discountValue": "", "discountKind": "" },
+    { "description": "Reparatur diverser Sachen wie Snackautomat und Wasserschlauch", "unitPrice": "70.00", "quantity": "29", "vatRate": "19", "unit": "Std.", "discountValue": "", "discountKind": "" },
+    { "description": "Bau der Eisboxummantelung", "unitPrice": "70.00", "quantity": "8", "vatRate": "19", "unit": "Std.", "discountValue": "", "discountKind": "" },
+    { "description": "Einkauffahrten zu Metro und sonstige Tätigkeiten", "unitPrice": "40.00", "quantity": "37", "vatRate": "19", "unit": "Std.", "discountValue": "", "discountKind": "" }
+  ]
+}
