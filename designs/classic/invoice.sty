@@ -347,11 +347,12 @@
 	\setcounter{Expense@ctr}{0}%		% reset counter
 }
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\newcommand{\Fee}[3]{% Yields state 3, Print Fee Item
+\newcommand{\Fee}[4]{% Yields state 3, Print Fee Item
 	%
 	% #1 Contents
 	% #2 Fee per Unit
 	% #3 Unit Count
+	% #4 Optional unit label appended after the count (e.g. "Std."); may be empty
 	%
 	\ifcase\Flag % 0: Invoice not started yet
 		\error@message{\MissingOpening}%
@@ -365,12 +366,12 @@
 	\or	% 2: Start project, print title
 		%
 		\Fee@Title%
-		\Fee@Line{#1}{#2}{#3}%
+		\Fee@Line{#1}{#2}{#3}{#4}%
 		%
 	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 	\or	% 3: Print remuneration item
 		%
-		\Fee@Line{#1}{#2}{#3}%
+		\Fee@Line{#1}{#2}{#3}{#4}%
 		%
 	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 	\or	% 4: Print subtotal remuneration
@@ -819,7 +820,7 @@
 \newcommand{\Print@Value}[1]{%
 	\FPmul\r#1{0.01}%% <- Reduce to BaseCurrency
 	\FPtrunc\r\r{2}%% <- Truncate to two digits
-	\r%		% <- Output data!
+	\fmtmoney{\r}%		% <- Output data (with locale decimal mark)!
 }%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \newcommand{\Message@Value}[1]{%
@@ -844,17 +845,18 @@
 	\hline%
 }%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\newcommand{\Fee@Line}[3]{%
+\newcommand{\Fee@Line}[4]{%
 	%
 	% #1 Contents
 	% #2 Charged Fee per Unit
 	% #3 Count
+	% #4 Optional unit label appended after the count (literal per row); may be empty
 	%
 	% Internal command, called by \Fee.
 	%
 	\gdef\Flag{3}%
 	%
-	#1			&	&#2	&#3 &
+	#1			&	&\fmtmoney{#2}	&#3\if\relax\detokenize{#4}\relax\else\,#4\fi &
 %
 %   next is reversed to allow real arithmetic.
 %   intermediate results are stored in integer format,

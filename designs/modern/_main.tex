@@ -221,7 +221,10 @@
 % argument text), then the EXPANDED content of \curRow is appended to \allFeeRows
 % via \expandafter. This prevents later \Fee calls from overwriting earlier rows,
 % which happened when row tokens referenced shared macro variables like \curDesc.
-\newcommand{\Fee}[3]{%
+% \unitsuffix appends an optional unit after the quantity (e.g. "67\,Std."),
+% collapsing to nothing when no unit is given.
+\newcommand{\unitsuffix}[1]{\ifstrempty{#1}{}{\,#1}}
+\newcommand{\Fee}[4]{%
   \stepcounter{itemnum}%
   \FPmul{\myLineTot}{#2}{#3}%
   \FPround{\myLineTotR}{\myLineTot}{2}%
@@ -231,7 +234,7 @@
   \edef\curRow{%
     \noexpand\textcolor{brand}{\noexpand\textbf{\fmtnum{\value{itemnum}}}} &
     \noexpand\textbf{#1} &
-    #3 &
+    #3\noexpand\unitsuffix{#4} &
     \noexpand\fmtmoney{#2} &
     \noexpand\fmtmoney{\myLineTotR} \noexpand\\[1pt]%
     \noexpand\arrayrulecolor{lightgray}\noexpand\hline

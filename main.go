@@ -76,6 +76,7 @@ type LineItem struct {
 	UnitPrice   string `json:"unitPrice"`
 	Quantity    string `json:"quantity"`
 	VatRate     string `json:"vatRate"` // "", "7", or "19"
+	Unit        string `json:"unit"`    // optional display unit appended after the quantity, e.g. "Std." or "Stk."
 
 	// Optional per-line discount (Nachlass). DiscountKind selects how
 	// DiscountValue is interpreted; empty kind/value means no discount.
@@ -1069,6 +1070,7 @@ func buildDocument(req InvoiceRequest, p *Profile, cfg docConfig, designKey, doc
 			UnitPrice:   item.UnitPrice,
 			Quantity:    item.Quantity,
 			VatRate:     item.VatRate,
+			Unit:        latexEscape(item.Unit),
 		}
 		// Per-line discount display: compute the discount amount against the
 		// undiscounted line net so the invoice shows full price minus Nachlass.

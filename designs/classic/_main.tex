@@ -17,6 +17,10 @@
 \usepackage{booktabs}
 
 \usepackage[german]{invoice}
+% Corff's \Fee / \Fee@Line are patched in invoice.sty to take an optional 4th
+% "unit" argument (e.g. "Std.") appended after the count, and to format amounts
+% via \fmtmoney (locale decimal mark). The shared _invoice template passes the
+% unit as that 4th argument.
 
 \renewcommand{\familydefault}{\sfdefault}
 
@@ -77,7 +81,7 @@
 % #1 = percent number (e.g. "10") or empty for a fixed-amount discount,
 % #2 = the discount amount in € (e.g. "9.00").
 \newcommand{\FeeDiscount}[2]{%
-  \Fee{\hspace*{1.5em}\textit{\ifEnglish Discount\else Nachlass\fi\ifstrempty{#1}{}{ #1\,\%}}}{-#2}{1}%
+  \Fee{\hspace*{1.5em}\textit{\ifEnglish Discount\else Nachlass\fi\ifstrempty{#1}{}{ #1\,\%}}}{-#2}{1}{}%
 }
 
 \begin{document}
@@ -118,7 +122,7 @@
 		\bigskip
 		\noindent\textbf{\ifEnglish Tax breakdown:\else Aufschlüsselung nach Steuersätzen:\fi}\\[0.5ex]
 		\renewcommand{\VatBreakdownRow}[4]{%
-		  #1\,\% & #2~€ & #3~€ & #4~€ \\
+		  #1\,\% & \fmtmoney{#2}~€ & \fmtmoney{#3}~€ & \fmtmoney{#4}~€ \\
 		}%
 		{\small
 		\begin{tabular}{rrrr}
@@ -127,7 +131,7 @@
 		\midrule
 		\VatBreakdownRows
 		\midrule
-		\textbf{\ifEnglish Total\else Summe\fi} & \textbf{\NetTotal~€} & \textbf{\VatTotal~€} & \textbf{\GrossTotal~€} \\
+		\textbf{\ifEnglish Total\else Summe\fi} & \textbf{\fmtmoney{\NetTotal}~€} & \textbf{\fmtmoney{\VatTotal}~€} & \textbf{\fmtmoney{\GrossTotal}~€} \\
 		\bottomrule
 		\end{tabular}
 		}
