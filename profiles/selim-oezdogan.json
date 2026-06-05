@@ -1,6 +1,6 @@
 {
   "name": "Selim Özdogan",
-  "taxID": "Steuernr. ergänzen",
+  "taxID": "30416/45243",
   "senderName": "Selim Özdogan",
   "senderCompanyLines": ["Selim Özdogan"],
   "senderStreet": "Verdiplatz 3",
@@ -10,11 +10,11 @@
   "senderMobilephone": "",
   "senderEmail": "",
   "senderWeb": "",
-  "accountIBAN": "IBAN ergänzen",
-  "accountBIC": "BIC ergänzen",
-  "accountBankName": "Bank ergänzen",
+  "accountIBAN": "DE46 6001 0070 0523 6637 04",
+  "accountBIC": "PBNKDEFFXXX",
+  "accountBankName": "Postbank",
   "logo": "",
   "shortName": "Selim Özdogan",
-  "vatID": "USt-IdNr. ergänzen",
+  "vatID": "DE815555218",
   "vatRate": 19
 }
