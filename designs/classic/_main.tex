@@ -55,9 +55,10 @@
 		 & \senderZIP  \ \senderCity \\
 		 \\
 		 %\Telefon \ Telefon:  \` \senderTelephone \\
-		 \ifEnglish Mobile\else Mobil\fi  & \usekomavar{frommobilephone} \\
-		 \ifEnglish Email\else E-Mail\fi  & \usekomavar{fromemail} \\
-		 \ifEnglish Website\else Webseite\fi & {\normalfont\ttfamily  \senderWeb } \\
+		 % Contact rows render only when filled, so empty fields leave no dead rows.
+		 \ifdefempty{\senderMobilephone}{}{\ifEnglish Mobile\else Mobil\fi  & \usekomavar{frommobilephone} \\}
+		 \ifdefempty{\senderEmail}{}{\ifEnglish Email\else E-Mail\fi  & \usekomavar{fromemail} \\}
+		 \ifSenderWeb \ifEnglish Website\else Webseite\fi & {\normalfont\ttfamily  \senderWeb } \\\fi
 		 \\
 		 \ifEnglish Tax No.\else Steuernummer\fi & \taxID \\
 		 \ifdefempty{\vatID}{}{\ifEnglish VAT ID\else USt-IdNr.\fi & \vatID \\}
@@ -113,12 +114,18 @@
 			\ifHasLogo\includegraphics[width=0.2\textwidth,height=1.5cm,keepaspectratio]{logo.png}\else{\Large\textbf{\shortName}}\fi
 			\opening{\invoiceSalutation}
 			\invoiceText
+		    % Single-rate invoices let Corff's invoice env compute net/MwSt/gross
+		    % natively (\vatRate carries the one rate); the VAT row label shows it.
+		    \makeatletter
+		    \def\SumVAT{\ifEnglish plus \VAT@rate\,\% VAT\else zzgl.\ \VAT@rate\,\% MwSt.\fi}%
+		    \makeatother
 		    \begin{invoice}{Euro}{\vatRate}
 			    \input{_invoice}
 		    \end{invoice}
 
-		% VAT breakdown table: only rendered for USt-pflichtige Rechnungen
-		\ifHasAnyVat
+		% Per-rate breakdown table: only needed when the invoice MIXES rates.
+		% Single-rate VAT is shown inline by Corff's total block above.
+		\ifHasMultipleVatRates
 		\bigskip
 		\noindent\textbf{\ifEnglish Tax breakdown:\else Aufschlüsselung nach Steuersätzen:\fi}\\[0.5ex]
 		\renewcommand{\VatBreakdownRow}[4]{%

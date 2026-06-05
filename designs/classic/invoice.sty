@@ -894,14 +894,11 @@
 % not print a misleading "MWSt. (0%)  0.00" line.  The original \ifx
 % comparison against \Null did not work when \VAT@rate holds a macro
 % reference rather than the literal token "0".
-\newcommand{\ST@VAT@Printout}{%
-	\FPifzero{\VAT@rate}%
-	\else%
-		\VAT\ (\VAT@rate\%)	 &	&	&	&%
-			\setcounter{ST@VAT}{\theST@Fee * \real{\VAT@rate} / 100}%
-				\Print@Value{\theST@VAT}\\%
-	\fi%
-}%
+% Patched: project-level VAT subtotal suppressed. This vendored copy already
+% neuters the project fee subtotal (\Print@ST@Fees is empty); with a single
+% implicit project the only VAT shown should be the grand total
+% (\Total@VAT@Printout), so this orphan "MWSt. (19%)" subtotal row is dropped.
+\newcommand{\ST@VAT@Printout}{}%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \newcommand{\Expense@BaseCurrency}[2]{%
 	#1			& \BC		&	&	&%

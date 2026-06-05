@@ -48,6 +48,10 @@
 \newcommand{\shortName}{{"{"}}{{.ShortName}}{{"}"}}
 \newif\ifHasLogo
 {{if .HasLogo}}\HasLogotrue{{else}}\HasLogofalse{{end}}
+% SenderWeb toggle: \senderWeb wraps \url{} so it is never \ifdefempty-empty;
+% designs test this flag instead to drop an empty website row.
+\newif\ifSenderWeb
+{{if .HasSenderWeb}}\SenderWebtrue{{else}}\SenderWebfalse{{end}}
 % =============== BRANDING ===============
 
 
@@ -137,6 +141,11 @@
 \newcommand{\GrossTotal}{ {{.GrossTotalStr}} }
 \newif\ifHasAnyVat
 {{if .HasAnyVat}}\HasAnyVattrue{{else}}\HasAnyVatfalse{{end}}
+% HasMultipleVatRates: true when >1 distinct non-zero rate applies. Single-rate
+% invoices let the design render VAT as one summary (classic via Corff's env);
+% only mixed-rate invoices need the per-rate breakdown table.
+\newif\ifHasMultipleVatRates
+{{if .HasMultipleVatRates}}\HasMultipleVatRatestrue{{else}}\HasMultipleVatRatesfalse{{end}}
 
 \newcommand{\VatBreakdownRows}{%
 {{range .VatBreakdown -}}

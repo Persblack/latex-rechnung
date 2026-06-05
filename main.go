@@ -170,8 +170,9 @@ type TemplateData struct {
 	HasAnyVat           bool   // true when useVat=true and at least one item has vatRate>0
 
 	// Branding — designs use these to render a logo image or a wordmark fallback.
-	ShortName string // profile.shortName, escaped for LaTeX; intended as wordmark when HasLogo is false
-	HasLogo   bool   // true when logo file was found and copied to tmpDir as logo.png
+	ShortName    string // profile.shortName, escaped for LaTeX; intended as wordmark when HasLogo is false
+	HasLogo      bool   // true when logo file was found and copied to tmpDir as logo.png
+	HasSenderWeb bool   // true when the profile has a website (\senderWeb wraps \url, so designs can't test it with \ifdefempty)
 
 	// QR-Code visibility (per-request UI toggle).
 	ShowQR bool // true when the design should render the QR-code block. Mirrors !req.HideQR.
@@ -1062,11 +1063,43 @@ func buildDocument(req InvoiceRequest, p *Profile, cfg docConfig, designKey, doc
 		companyLines[i] = latexEscape(l)
 	}
 
-	// Escape line item descriptions; append VAT label when applicable.
+	// Compute VAT breakdown first so item rendering can decide whether a
+	// per-line VAT label adds information (only when rates are mixed).
+	vatBreakdown := computeVatBreakdown(req.Items, req.UseVat)
+	log.Printf("VAT breakdown for %s: %+v", req.InvoiceReference, vatBreakdown)
+
+	// Aggregate totals.
+	var totalNetCents, totalVatCents int64
+	nonZeroRates := map[int]struct{}{}
+	for _, b := range vatBreakdown {
+		totalNetCents += b.NetCents
+		totalVatCents += b.VatCents
+		if b.Rate > 0 {
+			nonZeroRates[b.Rate] = struct{}{}
+		}
+	}
+	totalGrossCents := totalNetCents + totalVatCents
+	hasAnyVat := req.UseVat && len(nonZeroRates) > 0
+	hasMultipleVatRates := len(nonZeroRates) > 1
+
+	// singleVatRate is the one rate handed to designs that render VAT as a
+	// single summary (classic lets Corff's invoice env compute net/MwSt/gross
+	// natively) — set only when exactly one non-zero rate applies. Mixed-rate
+	// invoices keep 0 and fall back to a per-rate breakdown table.
+	singleVatRate := 0
+	if hasAnyVat && !hasMultipleVatRates {
+		for r := range nonZeroRates {
+			singleVatRate = r
+		}
+	}
+
+	// Escape line item descriptions. The per-line "(19% MwSt.)" label is added
+	// only when the invoice mixes rates — a single-rate invoice stays clean and
+	// shows the rate once in the summary.
 	escapedItems := make([]LineItem, len(req.Items))
 	for i, item := range req.Items {
 		esc := LineItem{
-			Description: itemDescription(item, req.UseVat),
+			Description: itemDescription(item, req.UseVat && hasMultipleVatRates),
 			UnitPrice:   item.UnitPrice,
 			Quantity:    item.Quantity,
 			VatRate:     item.VatRate,
@@ -1086,24 +1119,6 @@ func buildDocument(req InvoiceRequest, p *Profile, cfg docConfig, designKey, doc
 		}
 		escapedItems[i] = esc
 	}
-
-	// Compute VAT breakdown using original (unescaped) items.
-	vatBreakdown := computeVatBreakdown(req.Items, req.UseVat)
-	log.Printf("VAT breakdown for %s: %+v", req.InvoiceReference, vatBreakdown)
-
-	// Aggregate totals.
-	var totalNetCents, totalVatCents int64
-	nonZeroRates := map[int]struct{}{}
-	for _, b := range vatBreakdown {
-		totalNetCents += b.NetCents
-		totalVatCents += b.VatCents
-		if b.Rate > 0 {
-			nonZeroRates[b.Rate] = struct{}{}
-		}
-	}
-	totalGrossCents := totalNetCents + totalVatCents
-	hasAnyVat := req.UseVat && len(nonZeroRates) > 0
-	hasMultipleVatRates := len(nonZeroRates) > 1
 
 	// Resolve payment mode; default to "transfer" when omitted for backwards-compat.
 	paymentMode := req.PaymentMode
@@ -1150,7 +1165,7 @@ func buildDocument(req InvoiceRequest, p *Profile, cfg docConfig, designKey, doc
 		AccountBIC:        latexEscape(p.AccountBIC),
 		AccountBankName:   latexEscape(p.AccountBankName),
 		VatID:             vatID(req, p),
-		VatRate:           vatRate(req, p),
+		VatRate:           singleVatRate,
 		InvoiceDate:       latexEscape(req.InvoiceDate),
 		PayDate:           latexEscape(req.PayDate),
 		InvoiceReference:  latexEscape(req.InvoiceReference),
@@ -1174,7 +1189,8 @@ func buildDocument(req InvoiceRequest, p *Profile, cfg docConfig, designKey, doc
 		HasAnyVat:           hasAnyVat,
 
 		ShortName: latexEscape(p.ShortName),
-		HasLogo:   hasLogo,
+		HasLogo:      hasLogo,
+		HasSenderWeb: strings.TrimSpace(p.SenderWeb) != "",
 
 		ShowQR:       !req.HideQR,
 		HasQRFile:    hasQRFile,
@@ -1241,11 +1257,6 @@ func vatID(req InvoiceRequest, p *Profile) string {
 	return p.VatID
 }
 
-// vatRate always returns 0 — VAT is now expressed per item in the description,
-// not as a global rate on the invoice environment.
-func vatRate(_ InvoiceRequest, _ *Profile) int {
-	return 0
-}
 
 // buildEPCPayload assembles the EPC069-12 ("Girocode") version 002 payload for
 // a SEPA Credit Transfer (SCT) from raw, un-escaped profile/request data. The
@@ -1300,10 +1311,11 @@ func truncateRunes(s string, n int) string {
 }
 
 // itemDescription returns the LaTeX-escaped item description, with the VAT
-// rate appended (e.g. "Cappuccino (19\% MwSt.)") when VAT is enabled.
-func itemDescription(item LineItem, useVat bool) string {
+// rate appended (e.g. "Cappuccino (19\% MwSt.)") only when showVatLabel is set
+// (i.e. the invoice mixes rates, so per-line rates aid clarity).
+func itemDescription(item LineItem, showVatLabel bool) string {
 	desc := latexEscape(item.Description)
-	if !useVat || item.VatRate == "" {
+	if !showVatLabel || item.VatRate == "" {
 		return desc
 	}
 	return desc + ` (` + item.VatRate + `\% MwSt.)`
