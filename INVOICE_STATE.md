@@ -56,7 +56,7 @@ Audit-Dokument: [`docs/compliance/audit-2026-05-20.md`](docs/compliance/audit-20
 ## Offene Themen (Polish, nicht-Blocker)
 
 1. **Modern Big-Type-Firmenname**: bei Profilen mit 3+ Zeilen Firmenname (z.B. `rico-kleinstadt`: „RK Holding GmbH / und Rico Klatte / Kleinstadt Roastery GbR") wird die `\fontsize{40pt}`-Wortmarke übergroß (5 Zeilen Big-Type). Fix-Optionen: (a) auto-shrink via `\scalebox`, (b) separater `\brandName`-Profile-Feld einführen, (c) erste Zeile nur als Big-Type.
-2. **Classic doppelte Summenzeile**: Oliver Corffs invoice.sty rendert „Gesamtsumme 350.00" (= Netto-Summe, weil global `\vatRate=0`), direkt darüber der Block „Aufschlüsselung … Summe Brutto 398.50". Verwirrend. Fix-Vorschlag: invoice.sty-`\Gesamtsumme`-Label patchen auf „Netto-Summe" wenn `\ifHasAnyVat`, oder die invoice.sty-Summenzeile unterdrücken und stattdessen die Aufschlüsselungstabelle als primären Total nehmen.
+2. ~~Classic doppelte Summenzeile~~ **GELÖST** (Commit `c0e3768`): Single-Rate-Rechnungen lassen Corff die MwSt nativ im Haupttabellen-Total rechnen (`\vatRate` trägt den einen Satz) → „Summe Dienstleistungen → zzgl. X% MwSt. → Gesamtsumme". Separate Aufschlüsselungstabelle nur noch bei gemischten Sätzen (`\ifHasMultipleVatRates`); Corffs redundante Projekt-MwSt-Zeile unterdrückt.
 3. **`vatID`-Check der „impliziten" Kleinunternehmer-Profile** (rico-catering, milky, snacks): mit Steuerberater verifizieren — falls eines davon eigentlich USt-pflichtig ist, `vatID` ergänzen, sonst Compliance-Risiko (§14c Abs.2 bei nicht ausgewiesener Steuer).
 4. **Override-Pattern für Templates** (`designs/<name>/templates/`): noch nicht implementiert, kein aktuelles Design braucht es.
 
