@@ -23,6 +23,9 @@ func TestDecimalSeparator(t *testing.T) {
 	if err := loadProfiles("profiles"); err != nil {
 		t.Fatalf("loadProfiles: %v", err)
 	}
+	if err := loadBankAccounts("bankaccounts.json"); err != nil {
+		t.Fatalf("loadBankAccounts: %v", err)
+	}
 	data, err := os.ReadFile(filepath.Join("invoices", "2026-001.json"))
 	if err != nil {
 		t.Fatalf("read invoice: %v", err)

@@ -375,6 +375,12 @@
           <option value="">— Design wählen —</option>
         </select>
       </div>
+      <div>
+        <label for="bankAccount">Bankkonto</label>
+        <select id="bankAccount">
+          <option value="">— Bankkonto wählen —</option>
+        </select>
+      </div>
     </div>
     <div class="profile-summary" id="profileSummary"></div>
     <div class="toggle-row">
@@ -625,15 +631,34 @@
       }
     });
 
-  $('profile').addEventListener('change', async () => {
-    const key = $('profile').value;
+  // Load bank accounts on startup.
+  fetch('/api/bankaccounts')
+    .then(r => r.json())
+    .then(list => {
+      list.sort((a, b) => a.label.localeCompare(b.label));
+      const sel = $('bankAccount');
+      list.forEach(a => {
+        const opt = document.createElement('option');
+        opt.value = a.key;
+        opt.textContent = a.bankName ? `${a.label} (${a.bankName})` : a.label;
+        sel.appendChild(opt);
+      });
+    });
+
+  // Fetches the selected profile, fills the summary line, and preselects its
+  // default bank account. Shared by the change listener and applyInvoice (the
+  // latter awaits it directly instead of dispatching 'change', so a saved
+  // invoice's own bankAccountId can't be clobbered by the async default-load).
+  async function loadProfileSummary(key) {
     const summary = $('profileSummary');
     if (!key) { summary.style.display = 'none'; return; }
-
     const p = await fetch(`/api/profiles/${key}`).then(r => r.json());
     summary.style.display = 'block';
     summary.textContent = `${p.senderName} · ${p.senderStreet}, ${p.senderZIP} ${p.senderCity} · ${p.senderEmail}`;
-  });
+    $('bankAccount').value = p.defaultBankAccountId || '';
+  }
+
+  $('profile').addEventListener('change', () => loadProfileSummary($('profile').value));
 
   // --- Saved recipients (Empfänger) -------------------------------------
   // Maps recipient JSON keys to the dashboard input ids they fill.
@@ -756,10 +781,11 @@
   function setVal(id, v) { $(id).value = v == null ? '' : v; }
 
   // applyInvoice repopulates every form field from a stored InvoiceRequest.
-  function applyInvoice(req) {
+  async function applyInvoice(req) {
     setVal('profile', req.profileKey);
-    $('profile').dispatchEvent(new Event('change'));
+    await loadProfileSummary(req.profileKey);
     setVal('design', req.design);
+    if (req.bankAccountId) setVal('bankAccount', req.bankAccountId);
     $('useVat').checked = !!req.useVat;
     $('showQR').checked = !req.hideQR;
     $('langEnglish').checked = req.language === 'en';
@@ -1020,6 +1046,7 @@
     return {
       profileKey:        $('profile').value,
       design:            $('design').value,
+      bankAccountId:     $('bankAccount').value,
       invoiceDate:       $('invoiceDate').value,
       payDate:           $('payDate').value,
       invoiceReference:  $('invoiceReference').value,

@@ -1,0 +1,38 @@
+{
+  "ing": {
+    "label": "ING",
+    "iban": "DE50 5001 0517 5450 3793 40",
+    "bic": "INGDDEFFXXX",
+    "bankName": "ING-DiBa"
+  },
+  "ing-extra": {
+    "label": "ING Extra",
+    "iban": "DE58 5001 0517 5809 8101 74",
+    "bic": "INGDDEFFXXX",
+    "bankName": "ING-DiBa"
+  },
+  "vbaw": {
+    "label": "VBAW",
+    "iban": "DE21 6509 1040 0140 6660 01",
+    "bic": "",
+    "bankName": ""
+  },
+  "kleinstadt": {
+    "label": "Kleinstadt",
+    "iban": "DE77 6309 1300 0524 0730 07",
+    "bic": "GENODES1LAI",
+    "bankName": "Volksbank Alb"
+  },
+  "trade-republic": {
+    "label": "Trade Republic",
+    "iban": "DE40 1001 2345 0493 0307 01",
+    "bic": "",
+    "bankName": ""
+  },
+  "postbank": {
+    "label": "Postbank",
+    "iban": "DE46 6001 0070 0523 6637 04",
+    "bic": "PBNKDEFFXXX",
+    "bankName": "Postbank"
+  }
+}

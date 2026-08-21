@@ -17,6 +17,9 @@ func TestBuildInvoiceWithEPCQR(t *testing.T) {
 	if err := loadProfiles("profiles"); err != nil {
 		t.Fatalf("loadProfiles: %v", err)
 	}
+	if err := loadBankAccounts("bankaccounts.json"); err != nil {
+		t.Fatalf("loadBankAccounts: %v", err)
+	}
 	p := profiles["rico-solo"]
 	if p == nil {
 		t.Fatal("profile rico-solo not loaded")
@@ -55,6 +58,9 @@ func TestBuildInvoiceCashNoQR(t *testing.T) {
 	}
 	if err := loadProfiles("profiles"); err != nil {
 		t.Fatalf("loadProfiles: %v", err)
+	}
+	if err := loadBankAccounts("bankaccounts.json"); err != nil {
+		t.Fatalf("loadBankAccounts: %v", err)
 	}
 	p := profiles["rico-solo"]
 

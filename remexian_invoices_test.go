@@ -18,6 +18,9 @@ func TestBuildStoredRemexianInvoices(t *testing.T) {
 	if err := loadProfiles("profiles"); err != nil {
 		t.Fatalf("loadProfiles: %v", err)
 	}
+	if err := loadBankAccounts("bankaccounts.json"); err != nil {
+		t.Fatalf("loadBankAccounts: %v", err)
+	}
 
 	for _, ref := range []string{"2026-001", "2026-002"} {
 		data, err := os.ReadFile(filepath.Join("invoices", ref+".json"))

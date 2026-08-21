@@ -2,7 +2,10 @@
   "name": "Kleinstadt Snacks GbR",
   "taxID": "88019 / 33307",
   "senderName": "Rico Klatte",
-  "senderCompanyLines": ["RK Holding GmbH", "und Selim Özdogan GbR"],
+  "senderCompanyLines": [
+    "RK Holding GmbH",
+    "und Selim Özdogan GbR"
+  ],
   "senderStreet": "Fischergasse 2",
   "senderZIP": "89073",
   "senderCity": "Ulm",
@@ -10,9 +13,7 @@
   "senderMobilephone": "+49 (0)171 4184943",
   "senderEmail": "kleinstadt.snacks@gmail.com",
   "senderWeb": "",
-  "accountIBAN": "DE50 5001 0517 5450 3793 40",
-  "accountBIC": "INGDDEFFXXX",
-  "accountBankName": "ING-DiBa",
+  "defaultBankAccountId": "ing",
   "logo": "snacks-logo.png",
   "shortName": "snacks"
 }

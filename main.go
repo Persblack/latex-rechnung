@@ -32,24 +32,32 @@ const defaultDesign = "classic"
 
 // Profile holds sender identity data loaded from a profiles/*.json file.
 type Profile struct {
-	Name               string   `json:"name"`
-	TaxID              string   `json:"taxID"`
-	SenderName         string   `json:"senderName"`
-	SenderCompanyLines []string `json:"senderCompanyLines"`
-	SenderStreet       string   `json:"senderStreet"`
-	SenderZIP          string   `json:"senderZIP"`
-	SenderCity         string   `json:"senderCity"`
-	SenderTelephone    string   `json:"senderTelephone"`
-	SenderMobilephone  string   `json:"senderMobilephone"`
-	SenderEmail        string   `json:"senderEmail"`
-	SenderWeb          string   `json:"senderWeb"`
-	AccountIBAN        string   `json:"accountIBAN"`
-	AccountBIC         string   `json:"accountBIC"`
-	AccountBankName    string   `json:"accountBankName"`
-	Logo               string   `json:"logo"`
-	ShortName          string   `json:"shortName"` // fallback wordmark when logo is missing (e.g. "rico", "frameway")
-	VatID              string   `json:"vatID"`
-	VatRate            int      `json:"vatRate"` // optional; defaults to 19 when VatID is set
+	Name                 string   `json:"name"`
+	TaxID                string   `json:"taxID"`
+	SenderName           string   `json:"senderName"`
+	SenderCompanyLines   []string `json:"senderCompanyLines"`
+	SenderStreet         string   `json:"senderStreet"`
+	SenderZIP            string   `json:"senderZIP"`
+	SenderCity           string   `json:"senderCity"`
+	SenderTelephone      string   `json:"senderTelephone"`
+	SenderMobilephone    string   `json:"senderMobilephone"`
+	SenderEmail          string   `json:"senderEmail"`
+	SenderWeb            string   `json:"senderWeb"`
+	DefaultBankAccountID string   `json:"defaultBankAccountId"` // key into bankaccounts.json
+	Logo                 string   `json:"logo"`
+	ShortName            string   `json:"shortName"` // fallback wordmark when logo is missing (e.g. "rico", "frameway")
+	VatID                string   `json:"vatID"`
+	VatRate              int      `json:"vatRate"` // optional; defaults to 19 when VatID is set
+}
+
+// BankAccount holds one bank account, loaded from bankaccounts.json (keyed by
+// id). Profiles reference an account by id via DefaultBankAccountID; an
+// InvoiceRequest may override that with its own BankAccountID.
+type BankAccount struct {
+	Label    string `json:"label"`
+	IBAN     string `json:"iban"`
+	BIC      string `json:"bic"`
+	BankName string `json:"bankName"`
 }
 
 // Recipient holds saved customer (Empfänger) Stammdaten loaded from a
@@ -117,12 +125,13 @@ type InvoiceRequest struct {
 	CustomerCity      string     `json:"customerCity"`
 	ProjectTitle      string     `json:"projectTitle"`
 	UseVat            bool       `json:"useVat"`
-	HideQR            bool       `json:"hideQR"`        // when true, designs suppress the QR-code block. Default false = QR rendered.
-	Language          string     `json:"language"`      // "de" (default) or "en". Empty => "de".
+	HideQR            bool       `json:"hideQR"`           // when true, designs suppress the QR-code block. Default false = QR rendered.
+	Language          string     `json:"language"`         // "de" (default) or "en". Empty => "de".
 	DecimalSeparator  string     `json:"decimalSeparator"` // "comma" (default, EUR) or "dot". Empty => "comma".
-	PaymentMode       string     `json:"paymentMode"`   // "transfer" (default) | "cash_due" | "cash_paid"
-	CashPaidDate      string     `json:"cashPaidDate"`  // ISO or DE date string, only used when paymentMode=cash_paid
-	Clauses           []string   `json:"clauses"`       // any of: "warranty_excluded", "retention_of_title", "late_fee_warning"
+	PaymentMode       string     `json:"paymentMode"`      // "transfer" (default) | "cash_due" | "cash_paid"
+	CashPaidDate      string     `json:"cashPaidDate"`     // ISO or DE date string, only used when paymentMode=cash_paid
+	Clauses           []string   `json:"clauses"`          // any of: "warranty_excluded", "retention_of_title", "late_fee_warning"
+	BankAccountID     string     `json:"bankAccountId"`    // key into bankaccounts.json; empty => profile's DefaultBankAccountID
 	Items             []LineItem `json:"items"`
 }
 
@@ -219,6 +228,10 @@ type Design struct {
 var profiles = map[string]*Profile{}
 var designs = map[string]*Design{}
 
+// bankAccounts holds every bank account, loaded once from bankaccounts.json.
+// Read-only after startup, like profiles/designs, so no mutex needed.
+var bankAccounts = map[string]*BankAccount{}
+
 // recipients is mutated at runtime via the save/delete endpoints, so unlike
 // profiles/designs it must be guarded. recipientDir is where files are read
 // from and written to.
@@ -248,6 +261,9 @@ func main() {
 	if err := loadDesigns("designs"); err != nil {
 		log.Printf("warning: could not load designs: %v", err)
 	}
+	if err := loadBankAccounts("bankaccounts.json"); err != nil {
+		log.Printf("warning: could not load bank accounts: %v", err)
+	}
 	if err := loadRecipients(recipientDir); err != nil {
 		log.Printf("warning: could not load recipients: %v", err)
 	}
@@ -261,6 +277,7 @@ func main() {
 	mux.Handle("/", http.FileServer(http.FS(staticFS)))
 	mux.HandleFunc("GET /api/profiles", handleProfiles)
 	mux.HandleFunc("GET /api/profiles/{key}", handleProfile)
+	mux.HandleFunc("GET /api/bankaccounts", handleBankAccounts)
 	mux.HandleFunc("GET /api/recipients", handleRecipients)
 	mux.HandleFunc("GET /api/recipients/{key}", handleRecipient)
 	mux.HandleFunc("POST /api/recipients", handleSaveRecipient)
@@ -303,6 +320,31 @@ func loadProfiles(dir string) error {
 		log.Printf("loaded profile %q (%s)", key, p.Name)
 	}
 	return nil
+}
+
+// loadBankAccounts reads bankaccounts.json (a single map[id]BankAccount file)
+// into the global bankAccounts store.
+func loadBankAccounts(path string) error {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return err
+	}
+	return json.Unmarshal(data, &bankAccounts)
+}
+
+func handleBankAccounts(w http.ResponseWriter, r *http.Request) {
+	type summary struct {
+		Key      string `json:"key"`
+		Label    string `json:"label"`
+		BankName string `json:"bankName"`
+	}
+	list := make([]summary, 0, len(bankAccounts))
+	for k, a := range bankAccounts {
+		list = append(list, summary{Key: k, Label: a.Label, BankName: a.BankName})
+	}
+	sort.Slice(list, func(i, j int) bool { return list[i].Label < list[j].Label })
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(list)
 }
 
 func handleProfiles(w http.ResponseWriter, r *http.Request) {
@@ -1137,9 +1179,22 @@ func buildDocument(req InvoiceRequest, p *Profile, cfg docConfig, designKey, doc
 	// for cash), and the profile has the data to build a valid payload. On any
 	// failure we leave HasQRFile false so the design falls back to its
 	// placeholder rather than failing the build.
+	// Resolve the bank account: request override wins, else the profile's
+	// own default. Missing/unknown id leaves acct zero-valued, so IBAN/BIC/
+	// BankName render empty and the EPC QR is silently skipped below —
+	// same graceful-degradation as an empty profile account before this.
+	bankAccountID := req.BankAccountID
+	if bankAccountID == "" {
+		bankAccountID = p.DefaultBankAccountID
+	}
+	var acct BankAccount
+	if a, ok := bankAccounts[bankAccountID]; ok {
+		acct = *a
+	}
+
 	hasQRFile := false
 	if !req.HideQR && paymentMode == "transfer" {
-		if payload := buildEPCPayload(p, req, formatCents(totalGrossCents)); payload != "" {
+		if payload := buildEPCPayload(p.SenderName, acct.IBAN, acct.BIC, req, formatCents(totalGrossCents)); payload != "" {
 			// Error correction level M is mandated by the EPC specification.
 			if err := qrcode.WriteFile(payload, qrcode.Medium, 512, filepath.Join(tmpDir, "epc-qr.png")); err != nil {
 				log.Printf("EPC QR render failed for %s: %v; falling back to placeholder", req.InvoiceReference, err)
@@ -1161,9 +1216,9 @@ func buildDocument(req InvoiceRequest, p *Profile, cfg docConfig, designKey, doc
 		SenderEmail:       p.SenderEmail,
 		SenderWeb:         p.SenderWeb,
 		AccountRCPT:       latexEscape(p.SenderName),
-		AccountIBAN:       latexEscape(p.AccountIBAN),
-		AccountBIC:        latexEscape(p.AccountBIC),
-		AccountBankName:   latexEscape(p.AccountBankName),
+		AccountIBAN:       latexEscape(acct.IBAN),
+		AccountBIC:        latexEscape(acct.BIC),
+		AccountBankName:   latexEscape(acct.BankName),
 		VatID:             vatID(req, p),
 		VatRate:           singleVatRate,
 		InvoiceDate:       latexEscape(req.InvoiceDate),
@@ -1188,7 +1243,7 @@ func buildDocument(req InvoiceRequest, p *Profile, cfg docConfig, designKey, doc
 		HasMultipleVatRates: hasMultipleVatRates,
 		HasAnyVat:           hasAnyVat,
 
-		ShortName: latexEscape(p.ShortName),
+		ShortName:    latexEscape(p.ShortName),
 		HasLogo:      hasLogo,
 		HasSenderWeb: strings.TrimSpace(p.SenderWeb) != "",
 
@@ -1257,7 +1312,6 @@ func vatID(req InvoiceRequest, p *Profile) string {
 	return p.VatID
 }
 
-
 // buildEPCPayload assembles the EPC069-12 ("Girocode") version 002 payload for
 // a SEPA Credit Transfer (SCT) from raw, un-escaped profile/request data. The
 // returned string is encoded verbatim into the QR image; banking apps parse it
@@ -1268,28 +1322,28 @@ func vatID(req InvoiceRequest, p *Profile) string {
 // BIC, Name, IBAN, Amount, PurposeCode, StructuredRef, UnstructuredRemittance.
 // We use the unstructured remittance (field 11) and leave the structured
 // reference (field 10) empty, as the two are mutually exclusive.
-func buildEPCPayload(p *Profile, req InvoiceRequest, grossTotalStr string) string {
-	iban := strings.ReplaceAll(p.AccountIBAN, " ", "")
+func buildEPCPayload(senderName, accountIBAN, accountBIC string, req InvoiceRequest, grossTotalStr string) string {
+	iban := strings.ReplaceAll(accountIBAN, " ", "")
 	if iban == "" || grossTotalStr == "" || grossTotalStr == "0.00" {
 		return ""
 	}
 
-	name := truncateRunes(strings.TrimSpace(p.SenderName), 70)
-	remittance := strings.TrimSpace("Rechnung " + req.InvoiceReference + " " + p.SenderName)
+	name := truncateRunes(strings.TrimSpace(senderName), 70)
+	remittance := strings.TrimSpace("Rechnung " + req.InvoiceReference + " " + senderName)
 	remittance = truncateRunes(remittance, 140)
 
 	fields := []string{
-		"BCD",                  // Service Tag
-		"002",                  // Version
-		"1",                    // Character set: 1 = UTF-8
-		"SCT",                  // Identification: SEPA Credit Transfer
-		strings.TrimSpace(p.AccountBIC), // BIC (optional within SEPA)
-		name,                            // Beneficiary name (≤70)
-		iban,                            // IBAN, no spaces
-		"EUR" + grossTotalStr,           // Amount, e.g. EUR398.50
-		"",                              // Purpose code (unused)
-		"",                              // Structured reference (unused)
-		remittance,                      // Unstructured remittance (≤140)
+		"BCD",                         // Service Tag
+		"002",                         // Version
+		"1",                           // Character set: 1 = UTF-8
+		"SCT",                         // Identification: SEPA Credit Transfer
+		strings.TrimSpace(accountBIC), // BIC (optional within SEPA)
+		name,                          // Beneficiary name (≤70)
+		iban,                          // IBAN, no spaces
+		"EUR" + grossTotalStr,         // Amount, e.g. EUR398.50
+		"",                            // Purpose code (unused)
+		"",                            // Structured reference (unused)
+		remittance,                    // Unstructured remittance (≤140)
 	}
 
 	// Drop trailing empty fields per spec to keep the payload compact.

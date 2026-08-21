@@ -2,7 +2,9 @@
   "name": "Selim Özdogan",
   "taxID": "30416/45243",
   "senderName": "Selim Özdogan",
-  "senderCompanyLines": ["Selim Özdogan"],
+  "senderCompanyLines": [
+    "Selim Özdogan"
+  ],
   "senderStreet": "Verdiplatz 3",
   "senderZIP": "75056",
   "senderCity": "Sulzfeld",
@@ -10,9 +12,7 @@
   "senderMobilephone": "",
   "senderEmail": "",
   "senderWeb": "",
-  "accountIBAN": "DE46 6001 0070 0523 6637 04",
-  "accountBIC": "PBNKDEFFXXX",
-  "accountBankName": "Postbank",
+  "defaultBankAccountId": "postbank",
   "logo": "",
   "shortName": "Selim Özdogan",
   "vatID": "DE815555218",

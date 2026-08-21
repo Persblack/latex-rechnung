@@ -1,0 +1,20 @@
+{
+  "name": "RiCharge GbR",
+  "taxID": "91070/44171",
+  "senderName": "RK Holding GmbH und Rico Klatte RiCharge GbR",
+  "senderCompanyLines": [
+    "RK Holding GmbH und Rico Klatte RiCharge GbR"
+  ],
+  "senderStreet": "Steibisberger Weg 20",
+  "senderZIP": "88239",
+  "senderCity": "Wangen im Allgäu",
+  "senderTelephone": "",
+  "senderMobilephone": "",
+  "senderEmail": "klatte@voozaa.biz",
+  "senderWeb": "https://voozaa.tech",
+  "defaultBankAccountId": "",
+  "logo": "",
+  "shortName": "RiCharge",
+  "vatID": "DE451248200",
+  "vatRate": 19
+}
