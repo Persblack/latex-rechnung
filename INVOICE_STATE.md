@@ -46,7 +46,8 @@ Audit-Dokument: [`docs/compliance/audit-2026-05-20.md`](docs/compliance/audit-20
 ## Architektur-Highlights (was wo lebt)
 
 - **Daten** (Profile, Kunde, Items, Datum, Anrede): `profiles/*.json` + Request-Payload.
-- **MwSt-Berechnung**: `main.go::computeVatBreakdown` — Fixed-Point in Cents, kaufmännische Rundung, Aggregation pro Steuersatz.
+- **MwSt-Berechnung**: `main.go::computeVatBreakdown` — Fixed-Point in Cents, MwSt je Steuersatz auf die Nettosumme **abgerundet** (nie zu hoher Ausweis, § 14c UStG; UStG schreibt keine Rundung vor, EuGH C-484/06). Classic übernimmt den Wert über `\VatTotalCents`, rechnet nicht selbst.
+- **Rechnungsnummer**: `main.go::nextInvoiceReference` (`GET /api/next-reference?profile=`) — `YYYYMM-n`, n fortlaufend je Profil aus den gespeicherten Rechnungen (höchste Nummer nach dem letzten `-` + 1), nie zufällig (§ 14 Abs. 4 Nr. 4 UStG). Nummern, die ein anderes Profil schon hält, werden übersprungen (Speicher-Schlüssel ist global; Lücken erlaubt, UStAE 14.5 Abs. 10). „Rechnung generieren" speichert vorher, damit keine ausgegebene Nummer ungespeichert bleibt.
 - **Daten-Snippets** (gemeinsam für alle Designs): `templates/_data.tex.tmpl` und `templates/_invoice.tex.tmpl`.
 - **Design-Macros** (von Designs überschreibbar): `\VatBreakdownRow{rate}{net}{vat}{gross}` + `\ifHasAnyVat` + `\NetTotal` / `\VatTotal` / `\GrossTotal`.
 - **Design-spezifischer LaTeX-Code**: `designs/<key>/_main.tex` (Pflicht), optional eigene `*.sty`/`*.def`, optional `_lieferschein_main.tex`.

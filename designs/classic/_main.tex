@@ -16,6 +16,14 @@
 \usepackage{etoolbox}
 \usepackage{booktabs}
 
+% DIN.lco reserves a band at the bottom of page 1 for the first-page footer.
+% We never set one, so that band was ~6cm of dead space: a third item was
+% pushed onto page 2 while page 1 sat half empty. BOTH lines are needed —
+% enlargefirstpage alone changes nothing, and firstfootvpos alone changes
+% nothing; verified by building all four combinations.
+\KOMAoptions{enlargefirstpage=true}
+\setplength{firstfootvpos}{\paperheight}
+
 \usepackage[german]{invoice}
 % Corff's \Fee / \Fee@Line are patched in invoice.sty to take an optional 4th
 % "unit" argument (e.g. "Std.") appended after the count, and to format amounts
@@ -34,7 +42,17 @@
 \setkomavar{fromphone}{\senderTelephone}
 \setkomavar{frommobilephone}{\senderMobilephone}
 \setkomavar{fromemail}{\href{mailto:\senderEmail}{\nolinkurl{\senderEmail}}}
+% Rücksendevermerk (the tiny line above the recipient block, for window
+% envelopes). scrlttr2 builds it from fromname+fromaddress by default, which
+% overran its fixed-width zone and collided with the firsthead for long legal
+% names. This line is postal convenience, not a §14 UStG field, so the short
+% name is fine here — the full legal name stays in the Anschrift block.
+\setkomavar{backaddress}{\shortName, \senderStreet, \senderZIP\ \senderCity}
 \setkomavar{subject}{\ifEnglish Invoice\else Rechnung\fi}
+% A letter is signed by a PERSON, but \fromname is the legal issuer and is
+% often a company ("RK Holding GmbH und Rico Klatte RiCharge GbR"). The
+% signature is its own field, defaulting to the issuer in the Go layer.
+\setkomavar{signature}{\signatureName}
 % Rechnungsnummer is placed inside firsthead to avoid the overlap bug
 % that occurred when \setkomavar{location} collided with the firsthead
 % Anschrift table (the parbox[t][\headheight] height constraint clipped
@@ -50,7 +68,12 @@
    \flushright
    \color[gray]{.3}%
 	\begin{tabular}{rl}
-		 \ifEnglish Address\else Anschrift\fi & \shortstack[r]{\senderCompany}\\
+		 % Long legal names must WRAP, not overflow: §14 UStG requires the
+		 % issuer's full name, so we cannot substitute \shortName here.
+		 % \shortstack has no width limit and pushed the whole tabular past
+		 % the 8cm parbox (and off the page) for names like
+		 % "RK Holding GmbH und Rico Klatte RiCharge GbR".
+		 \ifEnglish Address\else Anschrift\fi & \parbox[t]{5.3cm}{\raggedright\senderCompany}\\
 		 & \senderStreet\\
 		 & \senderZIP  \ \senderCity \\
 		 \\
@@ -64,26 +87,34 @@
 		 \ifdefempty{\vatID}{}{\ifEnglish VAT ID\else USt-IdNr.\fi & \vatID \\}
 		 \\
 		 \ifPaymentTransfer
+		 \ifEnglish Account holder\else Kontoinhaber\fi & \parbox[t]{5.3cm}{\raggedright\accountRCPT}\\
 		 \ifEnglish Bank\else Institut\fi & \accountBankName \\
 		 IBAN & \accountIBAN \\
 		 BIC & \accountBIC \\
 		 \\
 		 \fi
 		 \ifEnglish Invoice No.\else Rechnungsnr.\fi & \invoiceReference \\
-		 \multicolumn{2}{r}{\scriptsize\ifEnglish Service date equals invoice date.\else Leistungsdatum entspricht dem Rechnungsdatum.\fi}
 	\end{tabular}
    }%
 }
 
 
-% Per-line discount (Nachlass), emitted by _invoice.tex right after its \Fee.
-% Rendered as an indented negative fee line so Oliver Corff's running total
-% (Gesamtsumme) nets out the discount and the reduction is shown transparently.
-% #1 = percent number (e.g. "10") or empty for a fixed-amount discount,
-% #2 = the discount amount in € (e.g. "9.00").
-\newcommand{\FeeDiscount}[2]{%
-  \Fee{\hspace*{1.5em}\textit{\ifEnglish Discount\else Nachlass\fi\ifstrempty{#1}{}{ #1\,\%}}}{-#2}{1}{}%
-}
+% Optional per-item description, embedded by the Go layer in the \Fee
+% description argument. The description column is a p{}-column, so \newline
+% breaks inside the cell without ending the table row.
+\protected\def\FeeNote#1{\newline{\footnotesize\itshape\color[gray]{.35}#1}}
+
+% The per-line discount is now a column (see \LineDiscount in invoice.sty),
+% not a separate negative fee row.
+
+% Column/summary labels. invoice.def's German set is written for consultants
+% billing hours ("Preis/Stunde", "Dienstleistungen"), which reads wrong on a
+% product invoice. Overridden here rather than in the vendored .def so the
+% upstream file stays a clean copy.
+\def\UnitRate{Einzelpreis}
+\def\Count{Menge}
+\def\Fees{Positionen}
+\def\SumFees{Summe \Fees}
 
 \begin{document}
 
@@ -103,6 +134,11 @@
   \def\VAT{VAT}%
   \def\SumVAT{Sum VAT}%
   \def\Currency{Currency}%
+  \def\LineDiscountTitle{Discount}%
+  \def\UnitRate{Unit price}%
+  \def\Count{Qty}%
+  \def\Fees{Items}%
+  \def\SumFees{Subtotal}%
 \fi
 
 	\begin{letter}{%
@@ -144,6 +180,27 @@
 		}
 		\fi
 
+		% Leistungszeitpunkt (§14 Abs. 4 Nr. 6 UStG). It used to hang off the
+		% bottom-right of the Anschrift table, where it read as a stray caption
+		% on the bank details. It belongs with the items it describes.
+		\par\smallskip
+		{\footnotesize\ifHasServiceDateNote\serviceDateNote\else\ifEnglish Service date equals invoice date.\else Leistungsdatum entspricht dem Rechnungsdatum.\fi\fi}
+
+		% EPC/Girocode QR. Rendered server-side into the build dir; \ifHasQRFile
+		% is false for cash payments or a profile without IBAN, in which case we
+		% simply show nothing (classic has no placeholder graphic).
+		\ifShowQR\ifHasQRFile
+		\par\medskip
+		\noindent
+		\begin{minipage}[c]{22mm}\includegraphics[width=20mm]{epc-qr.png}\end{minipage}%
+		\hspace{4mm}%
+		\begin{minipage}[c]{0.62\textwidth}
+			\footnotesize
+			\textbf{\ifEnglish Pay by scanning\else Bezahlen per Scan\fi}\\
+			\ifEnglish Scan this EPC/Girocode with your banking app to prefill the transfer.\else Scannen Sie den Girocode mit Ihrer Banking-App, um die Überweisung vorauszufüllen.\fi
+		\end{minipage}
+		\fi\fi
+
 		\ifPaymentCashDue
 		\par\medskip
 		\textbf{\ifEnglish Cash on Delivery:\else Barzahlung:\fi}~%
@@ -171,13 +228,19 @@
 		\normalsize
 		\fi
 
-		\ifdefempty{\vatID}{%
+		% Bugfix 2026-08-31: was gated on \ifdefempty{\vatID}, i.e. on whether the
+		% SENDER PROFILE has a USt-IdNr configured — independent of useVat, so a
+		% Regelbesteuerer profile with no USt-IdNr on file (Steuernummer-only,
+		% legally sufficient per §14 Abs. 4 Nr. 2 UStG) got this Kleinunternehmer
+		% clause printed directly under a real "zzgl. 19% MwSt." total. Gate on
+		% \ifHasAnyVat instead — the same flag that drives the VAT breakdown table.
+		\ifHasAnyVat\else
 		\ps\ifEnglish
 		  Pursuant to \S\,19 UStG (German VAT Act) no value-added tax is included in the invoice total.%
 		\else
 		  Im ausgewiesenen Betrag ist gemäß § 19 UStG keine Umsatzsteuer enthalten.%
 		\fi
-		}{}
+		\fi
 
 		\renewcommand*{\raggedsignature}{\raggedright}
 		\closing{\invoiceClosing}

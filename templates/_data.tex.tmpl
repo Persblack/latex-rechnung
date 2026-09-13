@@ -6,6 +6,10 @@
 \newcommand{\invoiceText}{{"{"}}{{.InvoiceText}}{{"}"}}
 \newcommand{\invoiceEnclosures}{{"{"}}{{.InvoiceEnclosures}}{{"}"}}
 \newcommand{\invoiceClosing}{{"{"}}{{.InvoiceClosing}}{{"}"}}
+\newcommand{\signatureName}{{"{"}}{{.SignatureName}}{{"}"}}
+\newcommand{\serviceDateNote}{{"{"}}{{.ServiceDateNote}}{{"}"}}
+\newif\ifHasServiceDateNote
+{{if .HasServiceDateNote}}\HasServiceDateNotetrue{{else}}\HasServiceDateNotefalse{{end}}
 % ################## invoice DATA ##################
 
 
@@ -138,6 +142,7 @@
 
 \newcommand{\NetTotal}{ {{.NetTotalStr}} }
 \newcommand{\VatTotal}{ {{.VatTotalStr}} }
+\newcommand{\VatTotalCents}{ {{.VatTotalCents}} }
 \newcommand{\GrossTotal}{ {{.GrossTotalStr}} }
 \newif\ifHasAnyVat
 {{if .HasAnyVat}}\HasAnyVattrue{{else}}\HasAnyVatfalse{{end}}

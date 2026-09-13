@@ -1,7 +1,7 @@
 \ProjectTitle{{"{"}}{{.ProjectTitle}}{{"}"}}
 {{- range .Items}}
-\Fee{{"{"}}{{.Description}}{{"}"}}{{"{"}}{{.UnitPrice}}{{"}"}}{{"{"}}{{.Quantity}}{{"}"}}{{"{"}}{{.Unit}}{{"}"}}
 {{- if .HasDiscount}}
-\FeeDiscount{{"{"}}{{.DiscountLabel}}{{"}"}}{{"{"}}{{.DiscountAmountStr}}{{"}"}}
+\LineDiscount{{"{"}}{{.DiscountLabel}}{{"}"}}{{"{"}}{{.DiscountCents}}{{"}"}}{{"{"}}{{.DiscountAmountStr}}{{"}"}}
 {{- end}}
+\Fee{{"{"}}{{.Description}}{{"}"}}{{"{"}}{{.UnitPrice}}{{"}"}}{{"{"}}{{.Quantity}}{{"}"}}{{"{"}}{{.Unit}}{{"}"}}
 {{- end}}

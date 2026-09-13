@@ -172,6 +172,14 @@
     .items-wrap.vat-on .vat-header { display: block; }
     .vat-header { display: none; }
 
+    /* Optional per-item description: own line spanning the whole row */
+    .item-note {
+      grid-column: 1 / -1;
+      margin-top: -2px;
+      font-size: 13px;
+      color: var(--gray-600, #555);
+    }
+
     /* Quantity: number input + optional unit (e.g. "Std.") in one cell */
     .item-qty { display: flex; gap: 4px; }
     .item-qty-val { width: 100%; min-width: 0; }
@@ -525,6 +533,10 @@
         <input type="text" id="invoiceClosing" value="Mit freundlichen Grüßen">
       </div>
       <div>
+        <label for="signatureName">Unterzeichner</label>
+        <input type="text" id="signatureName" value="Rico Klatte" placeholder="leer = Firmenname des Profils">
+      </div>
+      <div class="span-2">
         <label for="invoiceEnclosures">Anlagen <span style="color:var(--gray-400)">(optional, LaTeX)</span></label>
         <input type="text" id="invoiceEnclosures" placeholder="\encl{Anlage 1}">
       </div>
@@ -658,7 +670,12 @@
     $('bankAccount').value = p.defaultBankAccountId || '';
   }
 
-  $('profile').addEventListener('change', () => loadProfileSummary($('profile').value));
+  $('profile').addEventListener('change', () => {
+    loadProfileSummary($('profile').value);
+    // A new invoice's number belongs to the company — refill on switch. A loaded
+    // invoice keeps the number it was issued with.
+    if (!currentInvoiceKey) genReference();
+  });
 
   // --- Saved recipients (Empfänger) -------------------------------------
   // Maps recipient JSON keys to the dashboard input ids they fill.
@@ -799,6 +816,11 @@
     setVal('invoiceText', req.invoiceText);
     setVal('invoiceEnclosures', req.invoiceEnclosures);
     setVal('invoiceClosing', req.invoiceClosing);
+    // Invoices saved before the Unterzeichner field existed carry no value.
+    // setVal would blank the input, and an empty field makes the server fall
+    // back to the profile's company name — so keep the HTML default instead.
+    // defaultValue is the value="" attribute, i.e. one source of truth.
+    $('signatureName').value = req.signatureName || $('signatureName').defaultValue;
     setVal('customerCompany', req.customerCompany);
     setVal('customerName', req.customerName);
     setVal('customerStreet', req.customerStreet);
@@ -824,7 +846,7 @@
 
     $('items').innerHTML = '';
     const items = req.items || [];
-    items.forEach(it => addItem(it.description, it.unitPrice, it.quantity, it.vatRate, it.discountValue, it.discountKind, it.unit));
+    items.forEach(it => addItem(it.description, it.unitPrice, it.quantity, it.vatRate, it.discountValue, it.discountKind, it.unit, it.note));
     if (items.length === 0) addItem();
   }
 
@@ -838,11 +860,12 @@
     setInvoiceStatus(`Geladen: ${$('storedInvoice').selectedOptions[0].textContent} — „Speichern" überschreibt diese Rechnung.`);
   });
 
+  // Returns true once the invoice is stored, false after showing an error.
   async function saveInvoice() {
     const payload = collectPayload();
     if (!payload.invoiceReference.trim()) {
       showError('Rechnungsnummer erforderlich, um die Rechnung zu speichern.');
-      return;
+      return false;
     }
     const key = slugifyRef(payload.invoiceReference);
     const editing = currentInvoiceKey && currentInvoiceKey === key;
@@ -851,12 +874,13 @@
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
     });
-    if (!res.ok) { showError(await res.text()); return; }
+    if (!res.ok) { showError(await res.text()); return false; }
     const saved = await res.json();
     currentInvoiceKey = saved.key;
     await loadInvoicesList(saved.key);
     $('error').style.display = 'none';
     setInvoiceStatus(`Gespeichert: ${saved.label}`);
+    return true;
   }
 
   async function deleteInvoice() {
@@ -896,12 +920,14 @@
     $('payDate').value = toDE(base);
   }
 
-  function genReference() {
-    const now = new Date();
-    const y = now.getFullYear();
-    const m = String(now.getMonth() + 1).padStart(2, '0');
-    const n = String(Math.floor(Math.random() * 900) + 100);
-    $('invoiceReference').value = `${y}${m}-${n}`;
+  // Next number in the selected company's own sequence (server-side, from the
+  // saved invoices) — never random: § 14 Abs. 4 Nr. 4 UStG.
+  async function genReference() {
+    const profile = $('profile').value;
+    if (!profile) { showError('Bitte zuerst ein Absender-Profil wählen.'); return; }
+    const res = await fetch(`/api/next-reference?profile=${encodeURIComponent(profile)}`);
+    if (!res.ok) { showError(await res.text()); return; }
+    $('invoiceReference').value = (await res.json()).reference;
   }
 
   // Sync items-wrap VAT class with toggle state.
@@ -927,7 +953,7 @@
   syncPaymentMode();
 
   // Line items.
-  function addItem(desc = '', price = '', qty = '', vatRate = '19', discVal = '', discKind = 'percent', unit = '') {
+  function addItem(desc = '', price = '', qty = '', vatRate = '19', discVal = '', discKind = 'percent', unit = '', note = '') {
     const row = document.createElement('div');
     row.className = 'item-row';
     row.innerHTML = `
@@ -950,6 +976,7 @@
         </select>
       </div>
       <button type="button" class="btn-remove" title="Entfernen" onclick="this.closest('.item-row').remove()">×</button>
+      <input type="text" class="item-note" placeholder="Beschreibungstext (optional)" value="${esc(note)}" title="Erscheint klein unter der Bezeichnung">
     `;
     $('items').appendChild(row);
   }
@@ -1022,6 +1049,7 @@
       unitPrice:     row.querySelector('.item-price').value,
       quantity:      row.querySelector('.item-qty-val').value,
       unit:          row.querySelector('.item-qty-unit').value,
+      note:          row.querySelector('.item-note').value,
       vatRate:       useVat ? row.querySelector('.item-vat').value : '',
       discountValue: row.querySelector('.item-disc-val').value,
       discountKind:  row.querySelector('.item-disc-kind').value,
@@ -1054,6 +1082,7 @@
       invoiceText:       $('invoiceText').value,
       invoiceEnclosures: $('invoiceEnclosures').value,
       invoiceClosing:    $('invoiceClosing').value,
+      signatureName:     $('signatureName').value,
       customerCompany:   $('customerCompany').value,
       customerName:      $('customerName').value,
       customerStreet:    $('customerStreet').value,
@@ -1082,6 +1111,9 @@
 
     const payload = collectPayload();
     if (payload.items.length === 0) { showError('Mindestens eine vollständige Position erforderlich.'); return; }
+    // An issued invoice number must be recorded, or the counter hands it out
+    // again. Saving first also refuses (409) a number another invoice holds.
+    if (endpoint === '/generate' && !(await saveInvoice())) return;
 
     btn.disabled = true;
     $(spinnerId).style.display = 'block';

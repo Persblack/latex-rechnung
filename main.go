@@ -18,6 +18,7 @@ import (
 	"strings"
 	"sync"
 	"text/template"
+	"time"
 
 	qrcode "github.com/skip2/go-qrcode"
 )
@@ -58,6 +59,11 @@ type BankAccount struct {
 	IBAN     string `json:"iban"`
 	BIC      string `json:"bic"`
 	BankName string `json:"bankName"`
+	// Holder is the legal account holder name (as registered with the bank).
+	// Empty falls back to the invoicing profile's SenderName — correct for
+	// accounts held by the same person/entity that invoices, wrong for a
+	// shared account (e.g. a GmbH profile using a personal account).
+	Holder string `json:"holder"`
 }
 
 // Recipient holds saved customer (Empfänger) Stammdaten loaded from a
@@ -85,6 +91,7 @@ type LineItem struct {
 	Quantity    string `json:"quantity"`
 	VatRate     string `json:"vatRate"` // "", "7", or "19"
 	Unit        string `json:"unit"`    // optional display unit appended after the quantity, e.g. "Std." or "Stk."
+	Note        string `json:"note"`    // optional free-text description, rendered under the item title
 
 	// Optional per-line discount (Nachlass). DiscountKind selects how
 	// DiscountValue is interpreted; empty kind/value means no discount.
@@ -95,6 +102,9 @@ type LineItem struct {
 	HasDiscount       bool   `json:"-"`
 	DiscountLabel     string `json:"-"` // e.g. "10\,\%" for percent; empty for fixed amount
 	DiscountAmountStr string `json:"-"` // positive discount amount in €, e.g. "9.00"
+	DiscountCents     int64  `json:"-"` // same discount in integer cents, e.g. 900 — designs that
+	//                                     render the discount as a column subtract this from the
+	//                                     line total, and cents avoids re-parsing money in LaTeX.
 }
 
 // VatBreakdown holds the aggregated net/vat/gross amounts for one VAT rate.
@@ -118,12 +128,14 @@ type InvoiceRequest struct {
 	InvoiceText       string     `json:"invoiceText"`
 	InvoiceEnclosures string     `json:"invoiceEnclosures"`
 	InvoiceClosing    string     `json:"invoiceClosing"`
+	SignatureName     string     `json:"signatureName"` // who signs; empty falls back to the profile's SenderName
 	CustomerCompany   string     `json:"customerCompany"`
 	CustomerName      string     `json:"customerName"`
 	CustomerStreet    string     `json:"customerStreet"`
 	CustomerZIP       string     `json:"customerZIP"`
 	CustomerCity      string     `json:"customerCity"`
 	ProjectTitle      string     `json:"projectTitle"`
+	ServiceDateNote   string     `json:"serviceDateNote"` // §14 Abs. 4 Nr. 6 UStG: overrides the default "service date = invoice date" line when the actual Leistungszeitraum differs (e.g. a backdated/retroactive invoice)
 	UseVat            bool       `json:"useVat"`
 	HideQR            bool       `json:"hideQR"`           // when true, designs suppress the QR-code block. Default false = QR rendered.
 	Language          string     `json:"language"`         // "de" (default) or "en". Empty => "de".
@@ -162,18 +174,21 @@ type TemplateData struct {
 	InvoiceText       string
 	InvoiceEnclosures string
 	InvoiceClosing    string
+	SignatureName     string
 	CustomerCompany   string
 	CustomerName      string
 	CustomerStreet    string
 	CustomerZIP       string
 	CustomerCity      string
 	ProjectTitle      string
+	ServiceDateNote   string
 	Items             []LineItem
 
 	// VAT breakdown — computed per request, see computeVatBreakdown.
 	VatBreakdown        []VatBreakdown
 	NetTotalStr         string // sum of all net amounts  e.g. "350.00"
 	VatTotalStr         string // sum of all VAT amounts  e.g.  "48.50"
+	VatTotalCents       int64  // same, in cents — classic feeds it to Corff's VAT counter
 	GrossTotalStr       string // gross total             e.g. "398.50"
 	HasMultipleVatRates bool   // true when >1 distinct non-zero rate appears
 	HasAnyVat           bool   // true when useVat=true and at least one item has vatRate>0
@@ -201,6 +216,9 @@ type TemplateData struct {
 
 	// Project title visibility.
 	HasProjectTitle bool // true when req.ProjectTitle != ""
+
+	// Service-date note visibility (§14 Abs. 4 Nr. 6 UStG override).
+	HasServiceDateNote bool // true when req.ServiceDateNote != ""
 
 	// Payment mode flags — exactly one is true per request.
 	PaymentMode       string // "transfer" | "cash_due" | "cash_paid"
@@ -286,6 +304,7 @@ func main() {
 	mux.HandleFunc("GET /api/designs/{key}", handleDesign)
 	mux.HandleFunc("GET /api/invoices", handleInvoices)
 	mux.HandleFunc("GET /api/invoices/{key}", handleInvoice)
+	mux.HandleFunc("GET /api/next-reference", handleNextReference)
 	mux.HandleFunc("POST /api/invoices", handleSaveInvoice)
 	mux.HandleFunc("PUT /api/invoices/{key}", handleUpdateInvoice)
 	mux.HandleFunc("DELETE /api/invoices/{key}", handleDeleteInvoice)
@@ -614,6 +633,45 @@ func handleInvoice(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(req)
+}
+
+// nextInvoiceReference returns "<YYYYMM>-<n>", where n continues the profile's
+// own sequence: the highest number after the last "-" among that profile's
+// saved invoices, plus one. § 14 Abs. 4 Nr. 4 UStG wants a unique, fortlaufende
+// number per issuer; gaps are allowed (UStAE 14.5 Abs. 10). The store key is
+// global across profiles, so a number another profile already holds is skipped
+// rather than colliding.
+func nextInvoiceReference(profileKey string, now time.Time) string {
+	invoicesMu.RLock()
+	defer invoicesMu.RUnlock()
+	n := 0
+	for _, req := range invoices {
+		if req.ProfileKey != profileKey {
+			continue
+		}
+		ref := strings.TrimSpace(req.InvoiceReference)
+		if v, err := strconv.Atoi(ref[strings.LastIndex(ref, "-")+1:]); err == nil && v > n {
+			n = v
+		}
+	}
+	prefix := now.Format("200601")
+	for {
+		n++
+		ref := fmt.Sprintf("%s-%d", prefix, n)
+		if _, taken := invoices[slugify(ref)]; !taken {
+			return ref
+		}
+	}
+}
+
+func handleNextReference(w http.ResponseWriter, r *http.Request) {
+	key := r.URL.Query().Get("profile")
+	if _, ok := profiles[key]; !ok {
+		http.Error(w, "unbekanntes Profil", http.StatusNotFound)
+		return
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]string{"reference": nextInvoiceReference(key, time.Now())})
 }
 
 // handleSaveInvoice creates a new stored invoice. It refuses (409 Conflict) to
@@ -1008,14 +1066,20 @@ func computeVatBreakdown(items []LineItem, useVat bool) []VatBreakdown {
 			}
 		}
 
-		// Kaufmännisch gerundete MwSt pro Zeile.
-		lineVatCents := roundHalfUp(float64(lineNetCents) * float64(rate) / 100.0)
-
 		if _, ok := rateMap[rate]; !ok {
 			rateMap[rate] = &accumulator{}
 		}
 		rateMap[rate].netCents += lineNetCents
-		rateMap[rate].vatCents += lineVatCents
+	}
+
+	// MwSt einmal je Steuersatz auf die Nettosumme, abgerundet (Integer-Division
+	// schneidet gegen null ab). Das UStG schreibt keine Rundung vor (EuGH
+	// C-484/06); geschuldet wird ohnehin auf das Entgelt (§§ 13, 16 UStG), und nur
+	// ein ZU HOHER Ausweis wäre nach § 14c UStG zusätzlich geschuldet — Abrunden
+	// weist daher nie zu viel aus. Je Satz statt je Zeile, damit sich die
+	// Abrundung nicht über viele Positionen aufsummiert (Verlust < 1 Cent je Satz).
+	for rate, acc := range rateMap {
+		acc.vatCents = acc.netCents * int64(rate) / 100
 	}
 
 	// Collect and sort by rate ascending.
@@ -1050,6 +1114,12 @@ func buildDocument(req InvoiceRequest, p *Profile, cfg docConfig, designKey, doc
 		return "", noop, fmt.Errorf("create temp dir: %w", err)
 	}
 	cleanup = func() { os.RemoveAll(tmpDir) }
+	// ponytail: RECHNUNG_KEEP_BUILD=1 keeps the build dir (path logged) so the
+	// LaTeX log and generated .tex are inspectable when a layout goes wrong.
+	if os.Getenv("RECHNUNG_KEEP_BUILD") != "" {
+		log.Printf("keeping build dir %s", tmpDir)
+		cleanup = noop
+	}
 
 	// Copy every file the design ships, so designs can include arbitrary
 	// .sty/.def/.tex/.png assets without registering them anywhere.
@@ -1142,10 +1212,14 @@ func buildDocument(req InvoiceRequest, p *Profile, cfg docConfig, designKey, doc
 	for i, item := range req.Items {
 		esc := LineItem{
 			Description: itemDescription(item, req.UseVat && hasMultipleVatRates),
-			UnitPrice:   item.UnitPrice,
-			Quantity:    item.Quantity,
-			VatRate:     item.VatRate,
-			Unit:        latexEscape(item.Unit),
+			// Normalise to two decimals: the dashboard's number input yields
+			// "480" for a whole-euro price, which LaTeX then printed as "480"
+			// next to "350,00" in the same table. Cents are the canonical unit
+			// everywhere else, so round-trip through them here too.
+			UnitPrice: formatCents(parseCents(item.UnitPrice)),
+			Quantity:  item.Quantity,
+			VatRate:   item.VatRate,
+			Unit:      latexEscape(item.Unit),
 		}
 		// Per-line discount display: compute the discount amount against the
 		// undiscounted line net so the invoice shows full price minus Nachlass.
@@ -1153,6 +1227,7 @@ func buildDocument(req InvoiceRequest, p *Profile, cfg docConfig, designKey, doc
 		if dc := lineDiscountCents(item, lineNetCents); dc > 0 {
 			esc.HasDiscount = true
 			esc.DiscountAmountStr = formatCents(dc)
+			esc.DiscountCents = dc
 			if item.DiscountKind == "percent" {
 				// Pass just the (escaped) number; each design's \FeeDiscount
 				// macro appends the "%" sign so the percent rate is shown.
@@ -1192,9 +1267,22 @@ func buildDocument(req InvoiceRequest, p *Profile, cfg docConfig, designKey, doc
 		acct = *a
 	}
 
+	accountHolder := acct.Holder
+	if accountHolder == "" {
+		accountHolder = p.SenderName
+	}
+
+	// Who signs the letter. The legal issuer (SenderName) is often a company,
+	// but a letter is signed by a person — so this is its own field, defaulting
+	// to the issuer when the request leaves it empty.
+	signatureName := strings.TrimSpace(req.SignatureName)
+	if signatureName == "" {
+		signatureName = p.SenderName
+	}
+
 	hasQRFile := false
 	if !req.HideQR && paymentMode == "transfer" {
-		if payload := buildEPCPayload(p.SenderName, acct.IBAN, acct.BIC, req, formatCents(totalGrossCents)); payload != "" {
+		if payload := buildEPCPayload(accountHolder, acct.IBAN, acct.BIC, req, formatCents(totalGrossCents)); payload != "" {
 			// Error correction level M is mandated by the EPC specification.
 			if err := qrcode.WriteFile(payload, qrcode.Medium, 512, filepath.Join(tmpDir, "epc-qr.png")); err != nil {
 				log.Printf("EPC QR render failed for %s: %v; falling back to placeholder", req.InvoiceReference, err)
@@ -1215,7 +1303,7 @@ func buildDocument(req InvoiceRequest, p *Profile, cfg docConfig, designKey, doc
 		SenderMobilephone: latexEscape(p.SenderMobilephone),
 		SenderEmail:       p.SenderEmail,
 		SenderWeb:         p.SenderWeb,
-		AccountRCPT:       latexEscape(p.SenderName),
+		AccountRCPT:       latexEscape(accountHolder),
 		AccountIBAN:       latexEscape(acct.IBAN),
 		AccountBIC:        latexEscape(acct.BIC),
 		AccountBankName:   latexEscape(acct.BankName),
@@ -1228,17 +1316,20 @@ func buildDocument(req InvoiceRequest, p *Profile, cfg docConfig, designKey, doc
 		InvoiceText:       latexEscape(req.InvoiceText),
 		InvoiceEnclosures: req.InvoiceEnclosures,
 		InvoiceClosing:    latexEscape(req.InvoiceClosing),
+		SignatureName:     latexEscape(signatureName),
 		CustomerCompany:   latexEscape(req.CustomerCompany),
 		CustomerName:      latexEscape(req.CustomerName),
 		CustomerStreet:    latexEscape(req.CustomerStreet),
 		CustomerZIP:       latexEscape(req.CustomerZIP),
 		CustomerCity:      latexEscape(req.CustomerCity),
 		ProjectTitle:      latexEscape(req.ProjectTitle),
+		ServiceDateNote:   latexEscape(req.ServiceDateNote),
 		Items:             escapedItems,
 
 		VatBreakdown:        vatBreakdown,
 		NetTotalStr:         formatCents(totalNetCents),
 		VatTotalStr:         formatCents(totalVatCents),
+		VatTotalCents:       totalVatCents,
 		GrossTotalStr:       formatCents(totalGrossCents),
 		HasMultipleVatRates: hasMultipleVatRates,
 		HasAnyVat:           hasAnyVat,
@@ -1253,6 +1344,8 @@ func buildDocument(req InvoiceRequest, p *Profile, cfg docConfig, designKey, doc
 		CommaDecimal: req.DecimalSeparator != "dot", // default comma (EUR)
 
 		HasProjectTitle: req.ProjectTitle != "",
+
+		HasServiceDateNote: req.ServiceDateNote != "",
 
 		PaymentMode:       paymentMode,
 		IsPaymentTransfer: paymentMode == "transfer",
@@ -1366,13 +1459,20 @@ func truncateRunes(s string, n int) string {
 
 // itemDescription returns the LaTeX-escaped item description, with the VAT
 // rate appended (e.g. "Cappuccino (19\% MwSt.)") only when showVatLabel is set
-// (i.e. the invoice mixes rates, so per-line rates aid clarity).
+// (i.e. the invoice mixes rates, so per-line rates aid clarity). An optional
+// free-text Note is appended as \FeeNote{…}, which each design renders as a
+// styled sub-line inside the same description cell.
 func itemDescription(item LineItem, showVatLabel bool) string {
 	desc := latexEscape(item.Description)
-	if !showVatLabel || item.VatRate == "" {
-		return desc
+	if showVatLabel && item.VatRate != "" {
+		desc += ` (` + item.VatRate + `\% MwSt.)`
 	}
-	return desc + ` (` + item.VatRate + `\% MwSt.)`
+	// ponytail: newlines collapse to spaces — LaTeX wraps the note anyway.
+	// Add \newline mapping if multi-paragraph notes are ever wanted.
+	if note := strings.Join(strings.Fields(item.Note), " "); note != "" {
+		desc += `\FeeNote{` + latexEscape(note) + `}`
+	}
+	return desc
 }
 
 // latexEscape escapes characters that are special in LaTeX text mode.

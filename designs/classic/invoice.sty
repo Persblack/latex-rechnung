@@ -230,7 +230,12 @@
 		%
 		\gdef\Flag{1}%
 		%\begin{center}% Removed 20050621 by suggestion from ...
-		\begin{longtable}{p{9cm}lrrr}%
+		% Patched: column 2 used to be an unused empty "l" column. It now
+		% carries the per-line Nachlass, and the order is
+		% Bezeichnung | Preis | Anzahl | Nachlass | Betrag.
+		% Every summary row below is "label & & & & value", so it stays
+		% valid at 5 columns regardless of what column 2 holds.
+		\begin{longtable}{p{5.9cm}rrrr}%
 		%
 	\else \error@message{\NoInvoiceNesting}%
 	\fi}%
@@ -817,10 +822,14 @@
 	\setcounter{ST@Project}{0}%
 }%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% \Cur is the currency mark appended to every money cell. Patched to show the
+% symbol in the cells instead of once in the column header, which read as
+% "Betrag (Euro)" over bare numbers.
+\newcommand{\Cur}{\,\texteuro}
 \newcommand{\Print@Value}[1]{%
 	\FPmul\r#1{0.01}%% <- Reduce to BaseCurrency
 	\FPtrunc\r\r{2}%% <- Truncate to two digits
-	\fmtmoney{\r}%		% <- Output data (with locale decimal mark)!
+	\fmtmoney{\r}\Cur%	% <- Output data (with locale decimal mark)!
 }%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \newcommand{\Message@Value}[1]{%
@@ -841,8 +850,33 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \newcommand{\Fee@Title}{%
 	\\
-	\noindent\textbf{\Activity}&&\UnitRate&\Count&\Amount\ (\BC)\\
+	% Patched: the currency moved from the header into every cell (\Print@Value
+	% and friends append \Cur), so "\Amount (\BC)" is now just "\Amount".
+	\noindent\textbf{\Activity}&\UnitRate&\Count&\LineDiscountTitle&\Amount\\
 	\hline%
+}%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Per-line discount (Nachlass), shown as its own column instead of a separate
+% row. The Go template emits \LineDiscount{percent}{cents}{amount} immediately
+% BEFORE the \Fee it belongs to; \Fee@Line consumes it and resets it, so a line
+% without a discount renders an empty cell.
+%   #1 = percent number (e.g. "10") or empty for a fixed-amount discount
+%   #2 = the discount in integer cents (e.g. "13000") — subtracted from the
+%        line total so the Betrag column and the invoice sum stay consistent
+%   #3 = the discount amount in € for display (e.g. "130.00")
+\newcommand{\LineDiscountTitle}{Nachlass}
+\newcommand{\LD@percent}{}
+\newcommand{\LD@amount}{}
+\def\LD@cents{0}
+\newcommand{\LineDiscount}[3]{%
+	\gdef\LD@percent{#1}\gdef\LD@cents{#2}\gdef\LD@amount{#3}%
+}%
+\newcommand{\LD@Reset}{\gdef\LD@percent{}\gdef\LD@cents{0}\gdef\LD@amount{}}%
+\newcommand{\LD@Cell}{%
+	\ifnum\LD@cents=0 \else
+		-\fmtmoney{\LD@amount}\Cur%
+		\ifx\LD@percent\empty\else\,{\scriptsize(\LD@percent\,\%)}\fi
+	\fi
 }%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \newcommand{\Fee@Line}[4]{%
@@ -856,7 +890,7 @@
 	%
 	\gdef\Flag{3}%
 	%
-	#1			&	&\fmtmoney{#2}	&#3\if\relax\detokenize{#4}\relax\else\,#4\fi &
+	#1			&\fmtmoney{#2}\Cur	&#3\if\relax\detokenize{#4}\relax\else\,#4\fi &\LD@Cell &
 %
 %   next is reversed to allow real arithmetic.
 %   intermediate results are stored in integer format,
@@ -865,6 +899,12 @@
 %
 		\FPmul\r{100}{#2}% added 2006-01-04
 		\setcounter{One@Fee}{1 *\real{\r} * \real{#3} }%
+%
+%   Patched: net out the per-line Nachlass so the Betrag column shows the
+%   amount actually charged and the running totals need no second pass.
+%   \LD@cents is integer cents, matching One@Fee's unit.
+		\addtocounter{One@Fee}{-\LD@cents}%
+		\LD@Reset%
 %
 		\addtocounter{ST@Fee}{\theOne@Fee}%
 		\addtocounter{Fee}{\theOne@Fee}%
@@ -1009,8 +1049,11 @@
 	%		\Print@Value{\theST@Project}\\
 }
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Patched: the VAT amount comes from the Go layer (\VatTotalCents, abgerundet
+% je Steuersatz) instead of calc's own \theFee*\real{rate}/100, so classic and
+% every other design print the same MwSt and the EPC-QR gross matches the PDF.
 \newcommand{\Total@VAT@Printout}{%
-		\setcounter{VAT}{\theFee*\real{\VAT@rate}/100}%
+		\setcounter{VAT}{\VatTotalCents}%
 			\SumVAT	&	&	&	&\Print@Value{\theVAT}\\%
 }%
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

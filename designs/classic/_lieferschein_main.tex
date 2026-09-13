@@ -54,6 +54,10 @@
    }%
 }
 
+% Optional per-item description — the items share the invoice's escaping path,
+% so a delivery note can carry \FeeNote too. Its Bezeichnung column is p{13cm}.
+\protected\def\FeeNote#1{\newline{\footnotesize\itshape\color[gray]{.35}#1}}
+
 
 \begin{document}
 
