@@ -41,7 +41,7 @@
 \usepackage[
   a4paper,
   top=9mm,
-  bottom=9mm,
+  bottom=6mm,
   left=16mm,
   right=16mm,
   headheight=0pt,
@@ -314,7 +314,7 @@
 \vspace*{-3mm}%
 \brandrule
 
-\vspace{5mm}
+\vspace{3mm}
 
 % =============================================================
 %  LOGO-BLOCK LINKS | META-BLOCK RECHTS
@@ -365,12 +365,12 @@
   \end{tabular}
   }
 
-  \vspace{4mm}
+  \vspace{2mm}
   % Dekoratives Barcode-Element
   \decobarcode
 \end{minipage}
 
-\vspace{5mm}
+\vspace{3mm}
 \grayrule
 
 % =============================================================
@@ -429,7 +429,7 @@
 \noindent
 {\small
 \setlength{\tabcolsep}{4pt}
-\setlength{\extrarowheight}{2pt}
+\setlength{\extrarowheight}{1pt}
 \begin{tabularx}{\linewidth}{@{}
   p{0.65cm}
   >{\raggedright\arraybackslash}X
@@ -500,16 +500,16 @@
 \vspace{1.5mm}
 
 \noindent
-\begin{minipage}[t]{0.56\linewidth}
+\begin{minipage}[t]{\linewidth}
   \metalabel{\ifEnglish Notes\else Hinweise\fi}\\[1.5pt]
   \textcolor{brand}{\rule{1.1cm}{0.7pt}}
 
-  \vspace{2mm}
+  \vspace{1mm}
   % Each line prints only when non-empty so an empty Rechnungstext
   % collapses instead of leaving a dead gap between Anrede and Grussformel.
-  \ifdefempty{\invoiceSalutation}{}{{\small\invoiceSalutation}\par\vspace{1.5mm}}
-  \ifdefempty{\invoiceText}{}{{\small\invoiceText}\par\vspace{1.5mm}}
-  \ifdefempty{\invoiceClosing}{}{{\small\invoiceClosing}\par\vspace{1.5mm}}
+  \ifdefempty{\invoiceSalutation}{}{{\small\invoiceSalutation}\par\vspace{1mm}}
+  \ifdefempty{\invoiceText}{}{{\small\invoiceText}\par\vspace{1mm}}
+  \ifdefempty{\invoiceClosing}{}{{\small\invoiceClosing}\par\vspace{1mm}}
   % The person signing, not the legal issuer (which is often a company and
   % stays in "Ausgestellt von" below). Go defaults it to the issuer.
   \ifdefempty{\signatureName}{}{{\small\signatureName}\par}
@@ -554,7 +554,7 @@
     \textbf{\ifEnglish Bank Transfer\else Banküberweisung\fi}\\[0.3mm]
     \accountRCPT\\[0.3mm]
     IBAN:~\accountIBAN\\[0.3mm]
-    BIC:~\accountBIC\\[0.3mm]
+    \ifdefempty{\accountBIC}{}{BIC:~\accountBIC\\[0.3mm]}
     Bank:~\accountBankName%
   \fi
   \ifPaymentCashDue
