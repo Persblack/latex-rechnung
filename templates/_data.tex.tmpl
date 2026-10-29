@@ -105,6 +105,9 @@
   \ifnum\fm@cnt>3 \edef\fm@B{\fm@B\fm@thou}\fm@cnt=1 \fi
   \edef\fm@B{\fm@B#1}\expandafter\fm@grpB\fi}
 \def\fm@revC#1{\ifx\fm@stop#1\else\edef\fm@C{#1\fm@C}\expandafter\fm@revC\fi}
+% \fmtqty{<dot-decimal>}: quantity display ("2.5" -> "2,5"), no thousands grouping.
+\def\fmtqty#1{\fm@qty#1..\fm@stop}
+\def\fm@qty#1.#2.#3\fm@stop{#1\if\relax\detokenize{#2}\relax\else\fm@dec#2\fi}
 \makeatother
 % =============== DECIMAL SEPARATOR ===============
 
