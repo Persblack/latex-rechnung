@@ -27,6 +27,9 @@
 
 % ################## Personal DATA ##################
 \newcommand{\taxID}{{"{"}}{{.TaxID}}{{"}"}}
+\newcommand{\taxOffice}{{"{"}}{{.TaxOffice}}{{"}"}}
+\newif\ifHasTaxOffice
+{{if .HasTaxOffice}}\HasTaxOfficetrue{{else}}\HasTaxOfficefalse{{end}}
 \newcommand{\vatID}{{"{"}}{{.VatID}}{{"}"}}
 \newcommand{\vatRate}{{"{"}}{{.VatRate}}{{"}"}}
 \newcommand{\senderName}{{"{"}}{{.SenderName}}{{"}"}}
@@ -143,10 +146,13 @@
 % =============== VAT BREAKDOWN ===============
 \providecommand{\VatBreakdownRow}[4]{} % no-op default; designs override
 
-\newcommand{\NetTotal}{ {{.NetTotalStr}} }
-\newcommand{\VatTotal}{ {{.VatTotalStr}} }
-\newcommand{\VatTotalCents}{ {{.VatTotalCents}} }
-\newcommand{\GrossTotal}{ {{.GrossTotalStr}} }
+% No padding spaces around the values: \fmtmoney strips a leading space but
+% not a trailing one, so "{ 10000.00 }" printed as "10.000,00 €" with a
+% spurious gap before the currency symbol in every design.
+\newcommand{\NetTotal}{{"{"}}{{.NetTotalStr}}{{"}"}}
+\newcommand{\VatTotal}{{"{"}}{{.VatTotalStr}}{{"}"}}
+\newcommand{\VatTotalCents}{{"{"}}{{.VatTotalCents}}{{"}"}}
+\newcommand{\GrossTotal}{{"{"}}{{.GrossTotalStr}}{{"}"}}
 \newif\ifHasAnyVat
 {{if .HasAnyVat}}\HasAnyVattrue{{else}}\HasAnyVatfalse{{end}}
 % HasMultipleVatRates: true when >1 distinct non-zero rate applies. Single-rate
@@ -157,7 +163,7 @@
 
 \newcommand{\VatBreakdownRows}{%
 {{range .VatBreakdown -}}
-\VatBreakdownRow{ {{.Rate}} }{ {{.NetStr}} }{ {{.VatStr}} }{ {{.GrossStr}} }%
+\VatBreakdownRow{{"{"}}{{.Rate}}{{"}"}}{{"{"}}{{.NetStr}}{{"}"}}{{"{"}}{{.VatStr}}{{"}"}}{{"{"}}{{.GrossStr}}{{"}"}}%
 {{end -}}
 }
 % =============== VAT BREAKDOWN ===============
