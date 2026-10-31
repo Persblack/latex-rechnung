@@ -33,5 +33,12 @@
     "bic": "DEUTDESSP14",
     "bankName": "FYRST",
     "holder": "RK Holding GmbH"
+  },
+  "vb-alb-arabaci": {
+    "label": "Volksbank Alb",
+    "iban": "DE89 6309 1300 0515 7270 08",
+    "bic": "GENODES1LAI",
+    "bankName": "Volksbank Alb eG",
+    "holder": "Ali Batuhan Arabaci"
   }
 }

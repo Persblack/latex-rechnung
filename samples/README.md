@@ -2,7 +2,7 @@
 
 Generiert mit Mock-Daten zum Vergleich der Designs und Szenarien.
 
-## Übersicht (15 PDFs — alle 6 Profile × beide Designs)
+## Übersicht (16 PDFs)
 
 | Datei | Design | Profil | Logo-Status | Szenario |
 |---|---|---|---|---|
@@ -21,6 +21,7 @@ Generiert mit Mock-Daten zum Vergleich der Designs und Szenarien.
 | `modern-rico-kleinstadt-ust-19.pdf` | modern | rico-kleinstadt | Logo | USt-pflichtig, Single-Rate 19% |
 | `modern-rico-kleinstadt-mischsatz.pdf` | modern | rico-kleinstadt | Logo | USt-pflichtig, Mischsatz 7%+19% |
 | `modern-frameway-ust-19.pdf` | modern | frameway | shortName-Fallback | USt-pflichtig, Single-Rate 19% |
+| `nonstop-nonstop-performance-ust-19.pdf` | nonstop | nonstop-performance | Logo (`nonstop_logo.png`) | USt-pflichtig, Single-Rate 19%, Nachbau der Vorlage „Rechnung Kleinstadt Brand.pdf" |
 
 ## Branding-Logik
 

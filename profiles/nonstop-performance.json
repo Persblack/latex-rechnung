@@ -1,0 +1,21 @@
+{
+  "name": "Nonstop Performance",
+  "taxID": "88106/00048",
+  "taxOffice": "Finanzamt Ulm",
+  "senderName": "Ali Batuhan Arabaci",
+  "senderCompanyLines": [
+    "Inh. Ali Batuhan Arabaci"
+  ],
+  "senderStreet": "Syrlinstraße 19",
+  "senderZIP": "89073",
+  "senderCity": "Ulm",
+  "senderTelephone": "",
+  "senderMobilephone": "",
+  "senderEmail": "",
+  "senderWeb": "",
+  "defaultBankAccountId": "vb-alb-arabaci",
+  "logo": "nonstop_logo.png",
+  "shortName": "NONSTOP",
+  "vatID": "DE315333658",
+  "vatRate": 19
+}

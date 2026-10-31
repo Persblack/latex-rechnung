@@ -1,0 +1,39 @@
+{
+  "profileKey": "nonstop-performance",
+  "design": "nonstop",
+  "invoiceDate": "10.06.2025",
+  "payDate": "10.06.2025",
+  "invoiceReference": "250610",
+  "invoiceSalutation": "",
+  "invoiceText": "Wir bedanken uns für die gute Zusammenarbeit und stellen Ihnen vereinbarungsgemäß folgende Leistungen in Rechnung:",
+  "invoiceEnclosures": "",
+  "invoiceClosing": "",
+  "signatureName": "",
+  "customerCompany": "Kleinstadt Roastery GbR",
+  "customerName": "Inh. RK Holding GmbH, Rico Klatte",
+  "customerStreet": "Steibisberger Weg 20",
+  "customerZIP": "88239",
+  "customerCity": "Wangen im Allgäu",
+  "projectTitle": "",
+  "serviceDateNote": "",
+  "useVat": true,
+  "hideQR": true,
+  "language": "de",
+  "decimalSeparator": "comma",
+  "paymentMode": "transfer",
+  "cashPaidDate": "",
+  "clauses": [],
+  "bankAccountId": "vb-alb-arabaci",
+  "items": [
+    {
+      "description": "Verkauf der Unternehmenswerte „Kleinstadt Roastery“ gem. Kaufvertrag vom 09.06.2025",
+      "unitPrice": "10000.00",
+      "quantity": "1",
+      "vatRate": "19",
+      "unit": "",
+      "note": "",
+      "discountValue": "",
+      "discountKind": ""
+    }
+  ]
+}

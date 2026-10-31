@@ -1,0 +1,5 @@
+{
+  "name": "Nonstop",
+  "description": "Schlichter DIN-5008-Geschäftsbrief: Logo oben rechts, unterstrichene Tabellenkopfzeile, rechtsbündiger Summenblock, dreispaltiger Fußzeilen-Pflichtangabenblock (nach der Nonstop-Performance-Vorlage)",
+  "supports": ["invoice"]
+}

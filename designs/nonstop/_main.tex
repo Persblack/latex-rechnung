@@ -1,0 +1,390 @@
+% =============================================================
+%  NONSTOP DESIGN -- schlichter DIN-5008-Geschäftsbrief
+%  Vorlage: "Rechnung Kleinstadt Brand.pdf" (Nonstop Performance,
+%  Ali Batuhan Arabaci) -- Scan aus den Eingangsrechnungen.
+%  Engine: pdfLaTeX
+%
+%  Alle Maße stammen aus dem Scan. Der Satzspiegel des Originals ist
+%  25 mm links / 25 mm rechts (gemessene Kopflinie 159,3 mm breit bei
+%  ~0,5 % Scan-Verkleinerung); die gemessenen x-Werte sind darauf
+%  normalisiert. Die Schriftgrade sind über Textbreiten kalibriert
+%  (Arial/Helvetica sind metrisch kompatibel):
+%     Fließtext 10 pt, Zeilenabstand 13,3 pt (4,7 mm)
+%     Überschrift 12 pt fett, Zahlungszeile 11 pt
+%     Rücksendeangabe + Hinweise 8 pt, Fußzeile 8 pt / 19,3 pt
+%
+%  Aufbau
+%  ------------------------------------------------------------------
+%  [x] Logo oben rechts, rechtsbündig zum Satzspiegel (185 mm)
+%  [x] Rücksendeangabe (DIN 5008), unterstrichen
+%  [x] Anschriftfeld
+%  [x] "Rechnungsdatum: ..." rechtsbündig
+%  [x] Leistungsdatums-Hinweis (§ 14 Abs. 4 Nr. 6 UStG) -- NICHT im
+%      Original; Pflichtangabe, deshalb ergänzt
+%  [x] "Rechnung Nr. <Nr.>" fett
+%  [x] Anschreiben (Anrede optional, Rechnungstext)
+%  [x] Positionstabelle Nr./Bezeichnung/Menge/Einzelbetrag/Gesamt
+%      mit durchgehender Linie unter der Kopfzeile
+%  [x] Summenblock rechtsbündig: Summe netto / zzgl. X% USt /
+%      Rechnungsbetrag (fett); § 19 UStG statt USt-Zeilen
+%  [x] Zahlungsbedingung ("sofort fällig" bzw. Zahlungsziel)
+%  [x] Dreispaltige Fußzeile: Anschrift | Bankverbindung | Steuerdaten
+%  [x] optionaler EPC/Girocode-QR (im Original nicht vorhanden)
+%
+%  Bewusste Abweichungen vom Scan:
+%   - Beträge mit zwei Nachkommastellen (Original: "10.000 €").
+%   - Mengen/Beträge stehen auf der ERSTEN Beschreibungszeile
+%     (Original: Word-Zellenausrichtung "unten").
+%   - "Steuer-Nr.:" / "USt-IdNr.:" statt "Steuer-Nr:" / "Ust.-ID:".
+% =============================================================
+
+\documentclass[a4paper,10pt]{article}
+
+% ---- Encoding & Sprache ----------------------------------
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[ngerman]{babel}
+\usepackage{textcomp}
+
+% ---- Satzspiegel -----------------------------------------
+% Der Satzspiegel gilt für FOLGESEITEN (Textbeginn 30 mm). Seite 1 trägt
+% den Briefkopf als Overlay; ihr Fließtext wird mit \letterheadskip um
+% 70 mm nach unten geschoben, sodass die erste Grundlinie exakt auf
+% 105,6 mm liegt (Originalmaß). Textunterkante 250 mm, darunter beginnt
+% bei 256,4 mm die Fußzeile (footskip = 258,8 mm Grundlinie - 250 mm).
+\usepackage[
+  a4paper,
+  left=25mm,
+  right=25mm,
+  top=30mm,
+  textheight=220mm,
+  headheight=0pt,
+  headsep=0pt,
+  footskip=8.8mm
+]{geometry}
+\setlength{\topskip}{5.6mm}
+% \vspace* setzt eine unsichtbare \hrule der Höhe 0 ab. Die ist die erste
+% Box der Seite, bekommt also den \topskip; die Überschrift danach erhält
+% zusätzlich einen vollen \baselineskip. Beide werden hier abgezogen,
+% damit die erste Grundlinie exakt auf 105,6 mm liegt.
+\newcommand{\letterheadskip}{%
+  \vspace*{\dimexpr 105.6mm - 30mm - \topskip - \baselineskip\relax}}
+
+% ---- Schrift: Helvetica (metrisch wie das Arial der Vorlage) ----
+\usepackage{helvet}
+\renewcommand{\familydefault}{\sfdefault}
+
+% ---- Pakete ----------------------------------------------
+\usepackage{xcolor}
+\usepackage{graphicx}
+\usepackage{array}
+\usepackage{fp}
+\usepackage{etoolbox}
+\usepackage{ifthen}
+\usepackage{url}
+\usepackage{tikz}
+
+\pagestyle{empty}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0pt}
+% Das Original ist linksbündig gesetzt (Zeile 1 des Anschreibens endet
+% deutlich vor dem rechten Rand) -- kein Blocksatz, keine Trennung.
+\raggedright
+
+\newcommand{\bodyfont}{\fontsize{10pt}{13.3pt}\selectfont}
+\newcommand{\headfont}{\fontsize{12pt}{14.4pt}\selectfont}
+\newcommand{\duefont}{\fontsize{11pt}{13.3pt}\selectfont}
+\newcommand{\notefont}{\fontsize{8pt}{9.6pt}\selectfont}
+\newcommand{\footfont}{\fontsize{8pt}{19.3pt}\selectfont} % Fußzeile: 6,8 mm Zeilenabstand
+
+% \gapto{<mm>}: vertikaler Abstand so, dass die NÄCHSTE Grundlinie
+% genau <mm> unter der aktuellen liegt (Grundlinienabstand abgezogen).
+\newcommand{\gapto}[1]{\vspace{\dimexpr #1mm - \baselineskip\relax}}
+
+% (Das gemeinsame _data.tex übergibt Zahlen ohne Füllleerzeichen.)
+
+% =============================================================
+%  TABELLENMASSE (aus dem Scan, Satzspiegel 25..185 mm)
+% =============================================================
+\newlength{\colNr}      \setlength{\colNr}{12.5mm}
+\newlength{\colDesc}    \setlength{\colDesc}{65.5mm}
+\newlength{\colQty}     \setlength{\colQty}{18mm}
+\newlength{\colUnit}    \setlength{\colUnit}{30.3mm}
+\newlength{\colTotal}   \setlength{\colTotal}{33.7mm}
+
+% =============================================================
+%  BRIEFKOPF-OVERLAY (nur Seite 1)
+%  Wird dem ersten Textbaustein vorangestellt; overlay-tikzpictures
+%  haben Breite und Höhe 0 und stören den Umbruch deshalb nicht.
+% =============================================================
+% \atpage{<anchor>}{<x mm>}{<y mm von oben>}{<Inhalt>}
+% Mehrzeilige Inhalte werden in \parbox[t] gesetzt: damit ist der
+% base-Anker die Grundlinie der ERSTEN Zeile (ein nacktes mehrzeiliges
+% tikz-Node verankert sonst auf der letzten Zeile).
+\newcommand{\atpage}[4]{%
+  \begin{tikzpicture}[remember picture, overlay]
+    \node[anchor=#1, inner sep=0pt, outer sep=0pt]
+      at ([xshift=#2mm, yshift=-#3mm]current page.north west) {#4};
+  \end{tikzpicture}%
+}
+
+\newcommand{\letterhead}{%
+  % --- Logo oben rechts (Wortmarke als Fallback) -----------
+  \ifHasLogo
+    \atpage{north east}{185}{30}{\includegraphics[height=16.7mm,keepaspectratio]{logo.png}}%
+  \else
+    \atpage{base east}{185}{44}{\fontsize{26pt}{28pt}\selectfont\bfseries\shortName}%
+  \fi
+  % --- Rücksendeangabe (DIN 5008) --------------------------
+  \atpage{base west}{25}{48}{%
+    \notefont\underline{\senderName\ \textbar\ \senderStreet\ \textbar\ \senderZIP\ \senderCity}}%
+  % --- Anschriftfeld ---------------------------------------
+  \atpage{base west}{25}{55.8}{%
+    \parbox[t]{85mm}{\bodyfont
+      \ifdefempty{\customerCompany}{}{\customerCompany\\}%
+      \customerName\\
+      \customerStreet\\
+      \customerZIP\ \customerCity}}%
+  % --- Rechnungsdatum --------------------------------------
+  \atpage{base east}{185}{78}{\bodyfont Rechnungsdatum:\hspace{3.7mm}\invoiceDate}%
+  % --- Leistungsdatum (§ 14 Abs. 4 Nr. 6 UStG) -------------
+  \atpage{base east}{185}{82.5}{%
+    \notefont
+    \ifHasServiceDateNote\serviceDateNote\else
+      \ifEnglish Service date equals invoice date.%
+      \else Leistungsdatum entspricht dem Rechnungsdatum.\fi
+    \fi}%
+}
+
+% =============================================================
+%  FUSSZEILE (auf jeder Seite)
+% =============================================================
+\newcommand{\nonstopfooter}{%
+  \footfont
+  \hspace*{5.55mm}%
+  % Spalte 1: Anschrift. Erste Zeile bleibt leer -- im Original beginnt
+  % die Anschriftspalte eine Zeile tiefer als Bank und Steuerdaten.
+  \parbox[t]{53.65mm}{\mbox{}\\ \senderCompany\\ \senderStreet\\ \senderZIP\ \senderCity}%
+  % Spalte 2: Bankverbindung
+  \parbox[t]{55.9mm}{%
+    \accountBankName\\
+    \ifEnglish Account holder:\else Inhaber:\fi\ \accountRCPT\\
+    IBAN:~\accountIBAN%
+    \ifdefempty{\accountBIC}{}{\\BIC:~\accountBIC}}%
+  % Spalte 3: Steuerdaten
+  \parbox[t]{44.9mm}{%
+    \ifEnglish Tax No.:\else Steuer-Nr.:\fi\ \taxID%
+    \ifdefempty{\vatID}{}{\\\ifEnglish VAT ID:\else USt-IdNr.:\fi\ \vatID}%
+    \ifHasTaxOffice\\\taxOffice\fi}%
+  \hfill
+}
+
+\makeatletter
+\def\ps@nonstop{%
+  \def\@oddhead{}\def\@evenhead{}%
+  \def\@oddfoot{\nonstopfooter}\let\@evenfoot\@oddfoot}
+\makeatother
+\pagestyle{nonstop}
+
+% =============================================================
+%  POSITIONEN
+%  _invoice.tex ruft \ProjectTitle, \LineDiscount und \Fee auf.
+%  Die Zeilen werden in \allFeeRows gesammelt und erst im Dokument
+%  gesetzt -- wie im modern-Design inklusive \edef-Expansion, damit
+%  spätere \Fee-Aufrufe frühere Zeilen nicht überschreiben.
+% =============================================================
+\newcounter{itemnum}
+\FPset{\invoiceSubtotal}{0}
+\newcommand{\allFeeRows}{}
+
+\newcommand{\unitsuffix}[1]{\ifstrempty{#1}{}{\,#1}}
+
+% \FeeNote: optionale Zusatzzeile, vom Go-Layer in das
+% Beschreibungsargument eingebettet. \protected\def ist notwendig, weil
+% \Fee die Zeile per \edef aufbaut und \newline nicht expandierbar ist.
+\protected\def\FeeNote#1{\newline{\notefont #1}}
+
+% \LineDiscount wird vom gemeinsamen Template direkt VOR dem zugehörigen
+% \Fee ausgegeben; die Werte werden zwischengespeichert und nach der
+% Positionszeile als eigene Zeile gesetzt.
+\newcommand{\LDpercent}{}
+\newcommand{\LDamount}{}
+\def\LDcents{0}
+\newcommand{\LineDiscount}[3]{\gdef\LDpercent{#1}\gdef\LDcents{#2}\gdef\LDamount{#3}}
+
+\newcommand{\Fee}[4]{%
+  \stepcounter{itemnum}%
+  \FPmul{\myLineTot}{#2}{#3}%
+  \FPround{\myLineTotR}{\myLineTot}{2}%
+  \FPadd{\myNewSub}{\invoiceSubtotal}{\myLineTotR}%
+  \FPround{\myNewSubR}{\myNewSub}{2}%
+  \xdef\invoiceSubtotal{\myNewSubR}%
+  \edef\curRow{%
+    \the\value{itemnum} &
+    #1 &
+    \noexpand\fmtqty{#3}\noexpand\unitsuffix{#4} &
+    \noexpand\fmtmoney{#2}\noexpand\,\noexpand\texteuro &
+    \noexpand\fmtmoney{\myLineTotR}\noexpand\,\noexpand\texteuro
+    \noexpand\\[2.2mm]%
+  }%
+  \expandafter\gappto\expandafter\allFeeRows\expandafter{\curRow}%
+  \ifnum\LDcents=0 \else
+    \edef\LDcall{\noexpand\FeeDiscount{\LDpercent}{\LDamount}}\LDcall
+    \gdef\LDpercent{}\gdef\LDcents{0}\gdef\LDamount{}%
+  \fi
+}
+
+% \FeeDiscount: Nachlasszeile unter der Position. Angezeigt wird die
+% Minderung; der Rechnungsbetrag kommt aus der Go-Schicht (\NetTotal),
+% die den Nachlass bereits abgezogen hat.
+\newcommand{\FeeDiscount}[2]{%
+  \FPsub{\myNewSub}{\invoiceSubtotal}{#2}%
+  \FPround{\myNewSubR}{\myNewSub}{2}%
+  \xdef\invoiceSubtotal{\myNewSubR}%
+  \gappto\allFeeRows{%
+    & \textit{\ifEnglish Discount\else Nachlass\fi\ifstrempty{#1}{}{ #1\,\%}} & & &
+    $-$\fmtmoney{#2}\,\texteuro \\[2.2mm]%
+  }%
+}
+
+\newcommand{\ProjectTitle}[1]{\gdef\theProjectTitle{#1}}
+\gdef\theProjectTitle{}
+
+% =============================================================
+%  SUMMENZEILE: Beschriftung rechtsbündig in der Einzelbetrag-Spalte,
+%  Betrag rechtsbündig in der Gesamt-Spalte.
+% =============================================================
+\newcommand{\TotalRow}[2]{%
+  \makebox[\dimexpr\colNr+\colDesc+\colQty+\colUnit\relax][r]{#1}%
+  \makebox[\colTotal][r]{#2}\par}
+
+% =============================================================
+\begin{document}
+
+\input{_data.tex}
+\input{_invoice.tex}
+
+\bodyfont
+
+% --- Überschrift (trägt das Briefkopf-Overlay) --------------
+\letterheadskip
+\letterhead
+{\headfont\bfseries\ifEnglish Invoice No.\else Rechnung Nr.\fi\ \invoiceReference}\par
+
+% --- Anschreiben --------------------------------------------
+\gapto{13.2}
+\ifdefempty{\invoiceSalutation}{}{\invoiceSalutation\par\gapto{9.4}}
+\ifHasProjectTitle{\bfseries\theProjectTitle\par\gapto{9.4}}\fi
+\invoiceText\par
+
+% --- Positionstabelle ----------------------------------------
+\gapto{17.0}
+{\bfseries
+ \makebox[\colNr][l]{Nr.}%
+ \makebox[\colDesc][l]{\ifEnglish Description\else Bezeichnung/Leistung\fi}%
+ \makebox[\colQty][r]{\ifEnglish Qty\else Menge\fi}%
+ \makebox[\colUnit][r]{\ifEnglish Unit price\else Einzelbetrag\fi}%
+ \makebox[\colTotal][r]{\ifEnglish Total/\texteuro\else Gesamt/\texteuro\fi}%
+}\par
+% Linie 0,25 mm UNTER der Grundlinie -- im Original schneidet sie die
+% Unterlängen von "Bezeichnung/Leistung".
+\nointerlineskip
+\vspace{0.25mm}
+\rule{\textwidth}{0.4mm}
+
+\vspace{\dimexpr 8.1mm - 0.65mm - \baselineskip\relax}
+\setlength{\tabcolsep}{0pt}
+\renewcommand{\arraystretch}{1}
+\begin{tabular}{@{}p{\colNr}>{\raggedright\arraybackslash}p{\colDesc}%
+  >{\raggedleft\arraybackslash}p{\colQty}%
+  >{\raggedleft\arraybackslash}p{\colUnit}%
+  >{\raggedleft\arraybackslash}p{\colTotal}@{}}
+\allFeeRows
+\end{tabular}\par
+
+% --- Summenblock ---------------------------------------------
+% Kalibriert: erste Summenzeile 12,8 mm unter der letzten Positionszeile
+% (Originalmaß). Der Abstand wird ab der UNTERKANTE der Tabelle gemessen
+% -- für hohe Boxen greift \lineskip, nicht \baselineskip --, ist also
+% unabhängig von der Anzahl der Positionen.
+\vspace{8.4mm}
+\ifHasAnyVat
+  \renewcommand{\VatBreakdownRow}[4]{%
+    \TotalRow{\ifEnglish plus #1\% VAT\else zzgl. #1\% Umsatzsteuer\fi}%
+             {\fmtmoney{#3}\,\texteuro}}%
+  \TotalRow{\ifEnglish Net total\else Summe netto\fi}{\fmtmoney{\NetTotal}\,\texteuro}
+  \VatBreakdownRows
+  \TotalRow{\bfseries\ifEnglish Invoice total\else Rechnungsbetrag\fi}%
+           {\bfseries\fmtmoney{\GrossTotal}\,\texteuro}
+\else
+  \TotalRow{\ifEnglish Net total\else Summe netto\fi}{\fmtmoney{\NetTotal}\,\texteuro}
+  \TotalRow{\bfseries\ifEnglish Invoice total\else Rechnungsbetrag\fi}%
+           {\bfseries\fmtmoney{\NetTotal}\,\texteuro}
+  \gapto{6.5}
+  {\notefont
+   \makebox[\textwidth][r]{%
+     \ifEnglish
+       The amount shown contains no value-added tax pursuant to \S\,19 of the German VAT Act.%
+     \else
+       Im ausgewiesenen Betrag ist gemäß \S\,19 UStG keine Umsatzsteuer enthalten.%
+     \fi}\par}
+\fi
+
+% --- Zahlungsbedingung ----------------------------------------
+\gapto{16.8}
+{\duefont
+ \ifPaymentTransfer
+   \ifthenelse{\equal{\payDate}{\invoiceDate}\OR\equal{\payDate}{}}%
+     {\ifEnglish This invoice is due immediately.\else Die Rechnung ist sofort fällig.\fi}%
+     {\ifEnglish Payable without deduction by \payDate.\else Zahlbar ohne Abzug bis zum \payDate.\fi}%
+ \fi
+ \ifPaymentCashDue
+   \ifEnglish Please pay the amount in cash upon delivery.\else Bitte zahlen Sie den Betrag bar bei Übergabe.\fi
+ \fi
+ \ifPaymentCashPaid
+   \ifEnglish Amount received in cash with thanks on \cashPaidDate.\else Betrag dankend in bar erhalten am \cashPaidDate.\fi
+ \fi
+}\par
+
+% --- Optionale Klauseln ---------------------------------------
+\ifboolexpr{bool{ShowWarrantyExcluded} or bool{ShowRetentionOfTitle} or bool{ShowLateFeeWarning}}{%
+  \gapto{7.0}
+  {\notefont
+   \ifShowWarrantyExcluded
+     \ifEnglish The sale is made under exclusion of any warranty.%
+     \else Der Verkauf erfolgt unter Ausschluss jeglicher Gewährleistung.\fi\par
+   \fi
+   \ifShowRetentionOfTitle
+     \ifEnglish Goods remain property of the seller until full payment.%
+     \else Die Ware bleibt bis zur vollständigen Bezahlung Eigentum des Verkäufers.\fi\par
+   \fi
+   \ifShowLateFeeWarning
+     \ifEnglish Late payment incurs statutory interest (5 percentage points above the base rate; 9 percentage points for B2B) pursuant to \S\S\,288, 286 BGB.%
+     \else Bei Zahlungsverzug werden gesetzliche Verzugszinsen (5 Prozentpunkte über Basiszinssatz, im B2B 9 Prozentpunkte) gemäß \S\S\,288, 286 BGB erhoben.\fi\par
+   \fi}%
+}{}
+
+% --- Grußformel (im Original nicht vorhanden, Datenmodell kennt sie) ---
+% Die Unterschrift hängt an der Grußformel: der Go-Layer setzt
+% \signatureName immer (Default = Absender); ein Name ohne Grußformel
+% wäre in diesem Brieflayout nur ein loser Eintrag am Seitenfuß.
+% \nobreak hält Grußformel und Unterschrift zusammen: reicht der Platz
+% nicht mehr, wandern beide gemeinsam auf die Folgeseite statt die
+% Unterschrift allein dort stehen zu lassen.
+\ifdefempty{\invoiceClosing}{}{%
+  \gapto{9.4}\invoiceClosing\par\nobreak
+  \ifdefempty{\signatureName}{}{\gapto{14.1}\nobreak\signatureName\par}%
+}
+
+% --- EPC/Girocode-QR (im Original nicht vorhanden) -------------
+\ifShowQR
+\ifPaymentCashPaid\else
+\ifHasQRFile
+  \gapto{11.0}
+  \includegraphics[width=22mm]{epc-qr.png}\par
+  {\notefont\ifEnglish Scan to pay\else Zahlen per Girocode\fi\par}
+\fi
+\fi
+\fi
+
+\end{document}
