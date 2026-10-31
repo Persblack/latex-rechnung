@@ -35,6 +35,7 @@ const defaultDesign = "classic"
 type Profile struct {
 	Name                 string   `json:"name"`
 	TaxID                string   `json:"taxID"`
+	TaxOffice            string   `json:"taxOffice"` // responsible Finanzamt; §14 UStG does not require it, but letterhead footers conventionally name it
 	SenderName           string   `json:"senderName"`
 	SenderCompanyLines   []string `json:"senderCompanyLines"`
 	SenderStreet         string   `json:"senderStreet"`
@@ -152,6 +153,7 @@ type InvoiceRequest struct {
 // used inside \href / \url and handled by the hyperref/url packages.
 type TemplateData struct {
 	TaxID             string
+	TaxOffice         string
 	SenderName        string
 	SenderCompany     string
 	SenderStreet      string
@@ -197,6 +199,7 @@ type TemplateData struct {
 	ShortName    string // profile.shortName, escaped for LaTeX; intended as wordmark when HasLogo is false
 	HasLogo      bool   // true when logo file was found and copied to tmpDir as logo.png
 	HasSenderWeb bool   // true when the profile has a website (\senderWeb wraps \url, so designs can't test it with \ifdefempty)
+	HasTaxOffice bool   // true when the profile names a responsible Finanzamt (designs drop the footer row otherwise)
 
 	// QR-Code visibility (per-request UI toggle).
 	ShowQR bool // true when the design should render the QR-code block. Mirrors !req.HideQR.
@@ -1294,6 +1297,7 @@ func buildDocument(req InvoiceRequest, p *Profile, cfg docConfig, designKey, doc
 
 	data := TemplateData{
 		TaxID:             latexEscape(p.TaxID),
+		TaxOffice:         latexEscape(p.TaxOffice),
 		SenderName:        latexEscape(p.SenderName),
 		SenderCompany:     strings.Join(companyLines, `\\`),
 		SenderStreet:      latexEscape(p.SenderStreet),
@@ -1337,6 +1341,7 @@ func buildDocument(req InvoiceRequest, p *Profile, cfg docConfig, designKey, doc
 		ShortName:    latexEscape(p.ShortName),
 		HasLogo:      hasLogo,
 		HasSenderWeb: strings.TrimSpace(p.SenderWeb) != "",
+		HasTaxOffice: strings.TrimSpace(p.TaxOffice) != "",
 
 		ShowQR:       !req.HideQR,
 		HasQRFile:    hasQRFile,
