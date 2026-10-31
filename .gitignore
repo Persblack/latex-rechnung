@@ -144,6 +144,7 @@ _lieferschein_main.pdf
 
 ## Local binaries (named after the module)
 /latex-rechnung
+/latex-rechnung.exe
 
 ## Claude Code agent worktrees
 .claude/worktrees/
