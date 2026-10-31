@@ -1,6 +1,6 @@
 # INVOICE_STATE.md
 
-Stand: 2026-05-20 (nach Orchestrator-Session)
+Stand: 2026-10-31 (nach Orchestrator-Session)
 
 ## Designs
 
@@ -8,6 +8,7 @@ Stand: 2026-05-20 (nach Orchestrator-Session)
 |---|---|---|---|
 | `classic` | **produktiv** | KOMA `scrlttr2` + Oliver Corffs `invoice`-Paket. Pflichtangaben-Block in Anschriftentabelle (Steuernr., USt-ID, IBAN, BIC, Rechnungsnr., Leistungsdatum). MwSt-Aufschlüsselung als Folge-Tabelle wenn `\ifHasAnyVat`. | `designs/classic/` |
 | `modern` | **produktiv (mit Polish-Notes)** | Tech-minimal Layout nach `inspo/invoice-light.jpeg` — Monospace, blaue Akzente, Crop-Marks, vertikale Labels (`CLIENT`/`SYSTEM ID`/`PAYMENT NODE`), **echter EPC/Girocode-QR** (server-seitig in Go gerendert, `\ifHasQRFile`; TikZ-Platzhalter nur noch Fallback). Dynamischer Total-Block mit Per-Rate-Aufschlüsselung. | `designs/modern/` |
+| `nonstop` | **produktiv** | Schlichter DIN-5008-Geschäftsbrief, Nachbau der Eingangsrechnung „Rechnung Kleinstadt Brand.pdf". Logo oben rechts, unterstrichene Rücksendeangabe, Kopfzeile mit durchgehender Linie, rechtsbündiger Summenblock, dreispaltige Fußzeile (Anschrift \| Bank \| Steuerdaten). Maße und Schriftgrade aus dem Scan kalibriert. | `designs/nonstop/` |
 
 **Default-Design im Dashboard:** `classic`.
 
@@ -21,6 +22,7 @@ Stand: 2026-05-20 (nach Orchestrator-Session)
 | `frameway` | Frameway GbR | USt-pflichtig |
 | `milky` | Milky Cream GbR | Kleinunternehmer (impliziert) — **mit Steuerberater abgleichen** |
 | `snacks` | Kleinstadt Snacks GbR | Kleinunternehmer (impliziert) — **mit Steuerberater abgleichen** |
+| `nonstop-performance` | Nonstop Performance (Inh. Ali Batuhan Arabaci) | USt-pflichtig (`vatID` gesetzt, `vatRate` 19) |
 
 (siehe `profiles/*.json` für vollständige Daten — `vatID` leer = System behandelt als Kleinunternehmer)
 
@@ -50,6 +52,7 @@ Audit-Dokument: [`docs/compliance/audit-2026-05-20.md`](docs/compliance/audit-20
 - **Rechnungsnummer**: `main.go::nextInvoiceReference` (`GET /api/next-reference?profile=`) — `YYYYMM-n`, n fortlaufend je Profil aus den gespeicherten Rechnungen (höchste Nummer nach dem letzten `-` + 1), nie zufällig (§ 14 Abs. 4 Nr. 4 UStG). Nummern, die ein anderes Profil schon hält, werden übersprungen (Speicher-Schlüssel ist global; Lücken erlaubt, UStAE 14.5 Abs. 10). „Rechnung generieren" speichert vorher, damit keine ausgegebene Nummer ungespeichert bleibt.
 - **Daten-Snippets** (gemeinsam für alle Designs): `templates/_data.tex.tmpl` und `templates/_invoice.tex.tmpl`.
 - **Design-Macros** (von Designs überschreibbar): `\VatBreakdownRow{rate}{net}{vat}{gross}` + `\ifHasAnyVat` + `\NetTotal` / `\VatTotal` / `\GrossTotal`.
+- **Finanzamt**: optionales Profil-Feld `taxOffice` → `\taxOffice` + `\ifHasTaxOffice`. Keine Pflichtangabe nach § 14 UStG, aber üblicher Bestandteil des Briefbogen-Fußes; nur `nonstop` rendert es, die übrigen Designs ignorieren das Makro.
 - **Design-spezifischer LaTeX-Code**: `designs/<key>/_main.tex` (Pflicht), optional eigene `*.sty`/`*.def`, optional `_lieferschein_main.tex`.
 - **HTTP-Routing**: `main.go` mit `GET /api/designs`, `GET /api/designs/{key}`, `POST /generate?design=...`, `POST /lieferschein?design=...`. Backwards-Kompat: leeres `design`-Feld → `classic`.
 - **Frontend**: `static/index.html` mit Design-Dropdown neben Profil-Dropdown.
@@ -61,7 +64,7 @@ Audit-Dokument: [`docs/compliance/audit-2026-05-20.md`](docs/compliance/audit-20
 3. **`vatID`-Check der „impliziten" Kleinunternehmer-Profile** (rico-catering, milky, snacks): mit Steuerberater verifizieren — falls eines davon eigentlich USt-pflichtig ist, `vatID` ergänzen, sonst Compliance-Risiko (§14c Abs.2 bei nicht ausgewiesener Steuer).
 4. **Override-Pattern für Templates** (`designs/<name>/templates/`): noch nicht implementiert, kein aktuelles Design braucht es.
 
-## Letzte Aktionen (Orchestrator-Session 2026-05-20)
+## Letzte Aktionen (Orchestrator-Sessions 2026-05-20 und 2026-10-31)
 
 1. ✅ Agent-Team initialisiert (8 Agents, Umbrella + projektspezifisch via Symlinks) — PR #1
 2. ✅ Multi-Design-Architektur (`main.go` Routing, `/api/designs`, Frontend-Dropdown) — PR #2 (`latex-engineer/multi-design-routing`)
@@ -80,3 +83,5 @@ Audit-Dokument: [`docs/compliance/audit-2026-05-20.md`](docs/compliance/audit-20
 15. ✅ Alles nach `master` gemergt (Fast-Forward), Feature-Branches gelöscht. Nach `origin/master` gepusht.
 16. ✅ Optionale Positions-Einheit (`LineItem.unit`, z.B. „Std.") — durchgereicht als 4. `\Fee`-Argument in beiden Designs (classic: Corffs `\Fee`/`\Fee@Line` auf 4-arg gepatcht); Dashboard-Einheit-Feld pro Zeile. Plus Tausender-Gruppierung in `\fmtmoney` (DE 14.910,00), auch in classic (`\Print@Value`). — Commit `2c1cc72`
 17. ✅ Neues Profil `selim-oezdogan` (Einzelperson, USt-pflichtig) mit **Platzhaltern** (Steuernr./USt-IdNr./IBAN/BIC/Bank „ergänzen" — noch nicht versandfertig). Rechnung `invoices/so-2026-001.json` (Selim → Benjamin Wojtowicz, classic, 19% MwSt, Netto 14.910 €) aus „Rechnung S an B.pdf" übernommen + Korrekturen. — Commit `aa3f5aa`
+18. ✅ Neues Design `nonstop` + Profil `nonstop-performance` + Empfänger `kleinstadt-roastery` + Bankkonto `vb-alb-arabaci` + Rechnung `invoices/250610.json` — Nachbau der Eingangsrechnung „Rechnung Kleinstadt Brand.pdf" (Nonstop Performance → Kleinstadt Roastery GbR, 10.000 € netto + 19 % USt = 11.900 €). Der Scan hat keine Textebene; Maße und Schriftgrade wurden aus dem gerasterten PDF gemessen und über Textbreiten kalibriert (Satzspiegel 25/25 mm, Fließtext 10 pt/13,3 pt, Überschrift 12 pt fett, Zahlungszeile 11 pt, Fußzeile 8 pt/19,3 pt). Alle gemessenen Zeilenpositionen stimmen auf ≤ 0,3 mm mit dem Original überein. Logo aus dem Scan freigestellt → `logos/nonstop_logo.png`. Neu: Profil-Feld `taxOffice`. Ergänzt gegenüber dem Original: Leistungsdatums-Hinweis (§ 14 Abs. 4 Nr. 6 UStG). Sample: `samples/nonstop-nonstop-performance-ust-19.pdf`.
+19. ✅ Füllleerzeichen aus `\NetTotal` / `\VatTotal` / `\VatTotalCents` / `\GrossTotal` / `\VatBreakdownRow` in `templates/_data.tex.tmpl` entfernt. `\fmtmoney` entfernt zwar ein führendes, aber kein nachlaufendes Leerzeichen — „{ 10000.00 }" wurde deshalb in **allen** Designs als „10.000,00 ␣€" mit Lücke vor dem Währungszeichen gesetzt. Nach dem Fix in classic/modern/nonstop gegengeprüft.
