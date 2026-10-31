@@ -1491,5 +1491,14 @@ func latexEscape(s string) string {
 	s = strings.ReplaceAll(s, `$`, `\$`)
 	s = strings.ReplaceAll(s, `#`, `\#`)
 	s = strings.ReplaceAll(s, `_`, `\_`)
+	// `"` is not special in plain LaTeX, but every design loads babel with
+	// ngerman, which makes it an ACTIVE character heading the `"a` → ä
+	// shorthand family. An unescaped `"` therefore never reaches the
+	// typesetter as a character: it starts a shorthand that runs past the
+	// closing brace of the surrounding macro argument and aborts the build
+	// with `Argument of \language@active@arg" has an extra }`. Users who
+	// want typographic German quotes can type „ and “ directly; those are
+	// plain UTF-8 and pass through untouched.
+	s = strings.ReplaceAll(s, `"`, `\textquotedbl{}`)
 	return s
 }
