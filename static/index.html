@@ -816,11 +816,13 @@
     setVal('invoiceText', req.invoiceText);
     setVal('invoiceEnclosures', req.invoiceEnclosures);
     setVal('invoiceClosing', req.invoiceClosing);
-    // Invoices saved before the Unterzeichner field existed carry no value.
-    // setVal would blank the input, and an empty field makes the server fall
-    // back to the profile's company name — so keep the HTML default instead.
-    // defaultValue is the value="" attribute, i.e. one source of truth.
-    $('signatureName').value = req.signatureName || $('signatureName').defaultValue;
+    // Missing is not the same as empty. Invoices saved before the
+    // Unterzeichner field existed carry no key at all — those keep the HTML
+    // default. A stored empty string is a deliberate choice ("no signer in
+    // the form"), and the server then falls back to the profile's own sender
+    // name; overriding it with the default signed a foreign company's invoice
+    // with this machine's default name.
+    $('signatureName').value = req.signatureName ?? $('signatureName').defaultValue;
     setVal('customerCompany', req.customerCompany);
     setVal('customerName', req.customerName);
     setVal('customerStreet', req.customerStreet);
@@ -1051,8 +1053,13 @@
       unit:          row.querySelector('.item-qty-unit').value,
       note:          row.querySelector('.item-note').value,
       vatRate:       useVat ? row.querySelector('.item-vat').value : '',
+      // The kind select has no empty option, so it always reads "percent".
+      // Persisting that for a line without a discount value rewrites the
+      // stored invoice on every save; report no kind when there is no value.
       discountValue: row.querySelector('.item-disc-val').value,
-      discountKind:  row.querySelector('.item-disc-kind').value,
+      discountKind:  row.querySelector('.item-disc-val').value
+                       ? row.querySelector('.item-disc-kind').value
+                       : '',
     })).filter(i => i.description && i.unitPrice && i.quantity);
   }
 
