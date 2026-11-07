@@ -154,6 +154,7 @@ type InvoiceRequest struct {
 type TemplateData struct {
 	TaxID             string
 	TaxOffice         string
+	SenderFirm        string // profile.name — the registered firm name, rendered above the address lines
 	SenderName        string
 	SenderCompany     string
 	SenderStreet      string
@@ -1298,6 +1299,7 @@ func buildDocument(req InvoiceRequest, p *Profile, cfg docConfig, designKey, doc
 	data := TemplateData{
 		TaxID:             latexEscape(p.TaxID),
 		TaxOffice:         latexEscape(p.TaxOffice),
+		SenderFirm:        latexEscape(p.Name),
 		SenderName:        latexEscape(p.SenderName),
 		SenderCompany:     strings.Join(companyLines, `\\`),
 		SenderStreet:      latexEscape(p.SenderStreet),

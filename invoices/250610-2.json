@@ -1,0 +1,39 @@
+{
+  "profileKey": "nonstop-performance",
+  "design": "nonstop",
+  "invoiceDate": "10.06.2025",
+  "payDate": "10.06.2025",
+  "invoiceReference": "250610-2",
+  "invoiceSalutation": "",
+  "invoiceText": "Für unsere Leistungen erhalten Sie hiermit die Rechnung:",
+  "invoiceEnclosures": "",
+  "invoiceClosing": "",
+  "signatureName": "",
+  "customerCompany": "Kleinstadt Roastery GbR",
+  "customerName": "Inh. RK Holding GmbH, Rico Klatte",
+  "customerStreet": "Steibisberger Weg 20",
+  "customerZIP": "88239",
+  "customerCity": "Wangen im Allgäu",
+  "projectTitle": "Kleinstadt Roastery",
+  "serviceDateNote": "",
+  "useVat": true,
+  "hideQR": true,
+  "language": "de",
+  "decimalSeparator": "comma",
+  "paymentMode": "cash_due",
+  "cashPaidDate": "",
+  "clauses": [],
+  "bankAccountId": "vb-alb-arabaci",
+  "items": [
+    {
+      "description": "Consulting",
+      "unitPrice": "50",
+      "quantity": "50",
+      "vatRate": "19",
+      "unit": "h",
+      "note": "Beratung zum Rösten von Kaffee, Marketing und Vertrieb, Unternehmensabläufen und Unterstützung in den ersten 90 Tagen",
+      "discountValue": "",
+      "discountKind": ""
+    }
+  ]
+}

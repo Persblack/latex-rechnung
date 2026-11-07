@@ -26,12 +26,52 @@
   "bankAccountId": "vb-alb-arabaci",
   "items": [
     {
-      "description": "Consulting",
-      "unitPrice": "50",
-      "quantity": "50",
+      "description": "Markenrechte",
+      "unitPrice": "1000",
+      "quantity": "1",
       "vatRate": "19",
-      "unit": "h",
-      "note": "Beratung zum Rösten von Kaffee, Marketing und Vertrieb, Unternehmensabläufen und Unterstützung in den ersten 90 Tagen",
+      "unit": "",
+      "note": "Wort-Bild Marke \"Kleinstadt Roastery\"",
+      "discountValue": "",
+      "discountKind": ""
+    },
+    {
+      "description": "Online Shop",
+      "unitPrice": "5000",
+      "quantity": "1",
+      "vatRate": "19",
+      "unit": "",
+      "note": "Shopify Online-Shop inkl. Domain www.kleinstadt-roastery.de",
+      "discountValue": "",
+      "discountKind": ""
+    },
+    {
+      "description": "Kaffeemühle",
+      "unitPrice": "700",
+      "quantity": "1",
+      "vatRate": "19",
+      "unit": "",
+      "note": "Größe orangene professionelle Kaffeemühle, gebraucht",
+      "discountValue": "",
+      "discountKind": ""
+    },
+    {
+      "description": "Schweißgerät",
+      "unitPrice": "300",
+      "quantity": "1",
+      "vatRate": "19",
+      "unit": "",
+      "note": "Großes blaues Schweißgerät für Verpackungen, gebraucht",
+      "discountValue": "",
+      "discountKind": ""
+    },
+    {
+      "description": "Kaffeemaschine",
+      "unitPrice": "500",
+      "quantity": "1",
+      "vatRate": "19",
+      "unit": "",
+      "note": "Gastro-Siebträgermaschine",
       "discountValue": "",
       "discountKind": ""
     }

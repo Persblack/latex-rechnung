@@ -162,9 +162,10 @@
 \newcommand{\nonstopfooter}{%
   \footfont
   \hspace*{5.55mm}%
-  % Spalte 1: Anschrift. Erste Zeile bleibt leer -- im Original beginnt
-  % die Anschriftspalte eine Zeile tiefer als Bank und Steuerdaten.
-  \parbox[t]{53.65mm}{\mbox{}\\ \senderCompany\\ \senderStreet\\ \senderZIP\ \senderCity}%
+  % Spalte 1: Firmenname + Anschrift. Profile ohne Firmennamen behalten die
+  % Leerzeile -- im Original beginnt die Anschrift dann eine Zeile tiefer als
+  % Bank- und Steuerdaten.
+  \parbox[t]{53.65mm}{\ifdefempty{\senderFirm}{\mbox{}}{\senderFirm}\\ \senderCompany\\ \senderStreet\\ \senderZIP\ \senderCity}%
   % Spalte 2: Bankverbindung
   \parbox[t]{55.9mm}{%
     \accountBankName\\

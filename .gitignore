@@ -148,3 +148,6 @@ _lieferschein_main.pdf
 
 ## Claude Code agent worktrees
 .claude/worktrees/
+
+## Lokal generierte PDFs (Dashboard-Downloads / Nachbauten)
+/out/
