@@ -155,9 +155,17 @@
 		    \makeatletter
 		    \def\SumVAT{\ifEnglish plus \VAT@rate\,\% VAT\else zzgl.\ \VAT@rate\,\% MwSt.\fi}%
 		    \makeatother
+		    % Aufrechnung after the total, inside the same table: the amount to pay
+		    % drops, Entgelt and MwSt stay (a negative item would cut the VAT).
+		    \ifHasOffset
+		    \def\InvoiceAfterTotalRows{%
+		      \ifEnglish less\else abzgl.\fi\ \offsetLabel & & & & $-$\fmtmoney{\offsetAmount}~€\\
+		      \textbf{\ifEnglish Amount due\else Zahlbetrag\fi} & & & & \textbf{\fmtmoney{\payableTotal}~€}\\}%
+		    \fi
 		    \begin{invoice}{Euro}{\vatRate}
 			    \input{_invoice}
 		    \end{invoice}
+
 
 		% Per-rate breakdown table: only needed when the invoice MIXES rates.
 		% Single-rate VAT is shown inline by Corff's total block above.

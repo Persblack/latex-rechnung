@@ -146,6 +146,11 @@ type InvoiceRequest struct {
 	Clauses           []string   `json:"clauses"`          // any of: "warranty_excluded", "retention_of_title", "late_fee_warning"
 	BankAccountID     string     `json:"bankAccountId"`    // key into bankaccounts.json; empty => profile's DefaultBankAccountID
 	Items             []LineItem `json:"items"`
+	// Optional counterclaim offset (Aufrechnung), gross, deducted AFTER the
+	// invoice total: it lowers the amount to pay, never the taxable Entgelt
+	// (a negative line item would wrongly cut the VAT of the items).
+	OffsetLabel  string `json:"offsetLabel"`
+	OffsetAmount string `json:"offsetAmount"` // positive, e.g. "95.00"
 }
 
 // TemplateData is passed to the LaTeX templates. All string fields are
@@ -195,6 +200,10 @@ type TemplateData struct {
 	GrossTotalStr       string // gross total             e.g. "398.50"
 	HasMultipleVatRates bool   // true when >1 distinct non-zero rate appears
 	HasAnyVat           bool   // true when useVat=true and at least one item has vatRate>0
+	HasOffset           bool   // true when offsetAmount > 0
+	OffsetLabel         string // escaped
+	OffsetAmountStr     string // e.g. "95.00"
+	PayableTotalStr     string // gross total minus offset
 
 	// Branding — designs use these to render a logo image or a wordmark fallback.
 	ShortName    string // profile.shortName, escaped for LaTeX; intended as wordmark when HasLogo is false
@@ -1195,6 +1204,11 @@ func buildDocument(req InvoiceRequest, p *Profile, cfg docConfig, designKey, doc
 		}
 	}
 	totalGrossCents := totalNetCents + totalVatCents
+	offsetCents := parseCents(req.OffsetAmount)
+	if offsetCents < 0 {
+		offsetCents = -offsetCents
+	}
+	payableCents := totalGrossCents - offsetCents
 	hasAnyVat := req.UseVat && len(nonZeroRates) > 0
 	hasMultipleVatRates := len(nonZeroRates) > 1
 
@@ -1286,7 +1300,7 @@ func buildDocument(req InvoiceRequest, p *Profile, cfg docConfig, designKey, doc
 
 	hasQRFile := false
 	if !req.HideQR && paymentMode == "transfer" {
-		if payload := buildEPCPayload(accountHolder, acct.IBAN, acct.BIC, req, formatCents(totalGrossCents)); payload != "" {
+		if payload := buildEPCPayload(accountHolder, acct.IBAN, acct.BIC, req, formatCents(payableCents)); payload != "" {
 			// Error correction level M is mandated by the EPC specification.
 			if err := qrcode.WriteFile(payload, qrcode.Medium, 512, filepath.Join(tmpDir, "epc-qr.png")); err != nil {
 				log.Printf("EPC QR render failed for %s: %v; falling back to placeholder", req.InvoiceReference, err)
@@ -1339,6 +1353,10 @@ func buildDocument(req InvoiceRequest, p *Profile, cfg docConfig, designKey, doc
 		GrossTotalStr:       formatCents(totalGrossCents),
 		HasMultipleVatRates: hasMultipleVatRates,
 		HasAnyVat:           hasAnyVat,
+		HasOffset:           offsetCents > 0,
+		OffsetLabel:         latexEscape(req.OffsetLabel),
+		OffsetAmountStr:     formatCents(offsetCents),
+		PayableTotalStr:     formatCents(payableCents),
 
 		ShortName:    latexEscape(p.ShortName),
 		HasLogo:      hasLogo,

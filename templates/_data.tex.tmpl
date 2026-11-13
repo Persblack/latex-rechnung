@@ -10,6 +10,11 @@
 \newcommand{\serviceDateNote}{{"{"}}{{.ServiceDateNote}}{{"}"}}
 \newif\ifHasServiceDateNote
 {{if .HasServiceDateNote}}\HasServiceDateNotetrue{{else}}\HasServiceDateNotefalse{{end}}
+\newcommand{\offsetLabel}{{"{"}}{{.OffsetLabel}}{{"}"}}
+\newcommand{\offsetAmount}{{"{"}}{{.OffsetAmountStr}}{{"}"}}
+\newcommand{\payableTotal}{{"{"}}{{.PayableTotalStr}}{{"}"}}
+\newif\ifHasOffset
+{{if .HasOffset}}\HasOffsettrue{{else}}\HasOffsetfalse{{end}}
 % ################## invoice DATA ##################
 
 
