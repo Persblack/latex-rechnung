@@ -149,6 +149,7 @@
 \RequirePackage{ifthen}
 \RequirePackage{longtable}
 \providecommand{\InvoiceAfterTotalRows}{}
+\newif\ifInvoiceSumFeesRow \InvoiceSumFeesRowtrue % false when it would only repeat the total
 \RequirePackage{calc}
 \usepackage{fp}
 \input{invoice.def}
@@ -1060,8 +1061,8 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \newcommand{\Tot@l}{%
 	\\\hline
-	\ifnum\theFee>0 \SumFees&	&	&	&%
-				\Print@Value{\theFee}\\ 
+	\ifnum\theFee>0 \ifInvoiceSumFeesRow\SumFees&	&	&	&%
+				\Print@Value{\theFee}\\ \fi
 		\ifVATnonzero%
 			\Total@VAT@Printout%
 		\fi%

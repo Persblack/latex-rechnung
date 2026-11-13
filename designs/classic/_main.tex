@@ -155,38 +155,32 @@
 		    \makeatletter
 		    \def\SumVAT{\ifEnglish plus \VAT@rate\,\% VAT\else zzgl.\ \VAT@rate\,\% MwSt.\fi}%
 		    \makeatother
-		    % Aufrechnung after the total, inside the same table: the amount to pay
-		    % drops, Entgelt and MwSt stay (a negative item would cut the VAT).
-		    \ifHasOffset
+		    % Rows after Corff's total, inside the same table. Mixed rates: Corff's
+		    % total is the NET sum (\vatRate is 0), so it is labelled as such and
+		    % followed by one VAT row per rate naming its Entgelt (§14 Abs. 4 Nr. 8
+		    % UStG) and the real gross total. Then an optional Aufrechnung: it lowers
+		    % the amount to pay, never the Entgelt (a negative item would cut VAT).
+		    \def\InvoiceAfterTotalRows{}%
+		    \ifHasMultipleVatRates
+		    \def\Total{\ifEnglish Net total\else Summe netto\fi}%
+		    \InvoiceSumFeesRowfalse % Corff's total is the same net sum
+		    \renewcommand{\VatBreakdownRow}[4]{%
+		      \ifEnglish plus #1\,\% VAT on\else zzgl.\ #1\,\% MwSt.\ auf\fi\ \fmtmoney{#2}~€ & & & & \fmtmoney{#3}~€\\}%
 		    \def\InvoiceAfterTotalRows{%
+		      \VatBreakdownRows
+		      \hline
+		      \textbf{\ifEnglish Total\else Gesamtsumme\fi} & & & & \textbf{\fmtmoney{\GrossTotal}~€}\\}%
+		    \fi
+		    \ifHasOffset
+		    \edef\InvoiceAfterTotalRows{\unexpanded\expandafter{\InvoiceAfterTotalRows}\unexpanded{%
 		      \ifEnglish less\else abzgl.\fi\ \offsetLabel & & & & $-$\fmtmoney{\offsetAmount}~€\\
-		      \textbf{\ifEnglish Amount due\else Zahlbetrag\fi} & & & & \textbf{\fmtmoney{\payableTotal}~€}\\}%
+		      \textbf{\ifEnglish Amount due\else Zahlbetrag\fi} & & & & \textbf{\fmtmoney{\payableTotal}~€}\\}}%
 		    \fi
 		    \begin{invoice}{Euro}{\vatRate}
 			    \input{_invoice}
 		    \end{invoice}
 
 
-		% Per-rate breakdown table: only needed when the invoice MIXES rates.
-		% Single-rate VAT is shown inline by Corff's total block above.
-		\ifHasMultipleVatRates
-		\bigskip
-		\noindent\textbf{\ifEnglish Tax breakdown:\else Aufschlüsselung nach Steuersätzen:\fi}\\[0.5ex]
-		\renewcommand{\VatBreakdownRow}[4]{%
-		  #1\,\% & \fmtmoney{#2}~€ & \fmtmoney{#3}~€ & \fmtmoney{#4}~€ \\
-		}%
-		{\small
-		\begin{tabular}{rrrr}
-		\toprule
-		\ifEnglish Rate\else Steuersatz\fi & \ifEnglish Net\else Netto\fi & \ifEnglish VAT\else MwSt\fi & \ifEnglish Gross\else Brutto\fi \\
-		\midrule
-		\VatBreakdownRows
-		\midrule
-		\textbf{\ifEnglish Total\else Summe\fi} & \textbf{\fmtmoney{\NetTotal}~€} & \textbf{\fmtmoney{\VatTotal}~€} & \textbf{\fmtmoney{\GrossTotal}~€} \\
-		\bottomrule
-		\end{tabular}
-		}
-		\fi
 
 		% Leistungszeitpunkt (§14 Abs. 4 Nr. 6 UStG). It used to hang off the
 		% bottom-right of the Anschrift table, where it read as a stray caption
